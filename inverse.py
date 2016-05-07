@@ -39,7 +39,7 @@ def load_data():
 
 # copied from illctheanotutorial - modified for use here
 def w_init():
-    shape = (len(vecs),nr_hidden)
+    shape = (nr_hidden,len(vecs))
     a = np.random.normal(0.0, 1.0, shape)
     u, _, v = np.linalg.svd(a, full_matrices=False)
     q = u if u.shape == shape else v
@@ -57,7 +57,7 @@ def u_init():
 
 
 def embedding_init():
-    return np.random.randn(2, len(vecs)) * 0.01
+    return np.random.randn(1, len(vecs)) * 0.01
 
 # copied from illctheanotutorial - modified for use here
 class EmbeddingLayer(object):
@@ -97,12 +97,14 @@ def train():
     x = T.imatrix()
     
     #embedding_expr = embedding_layer.get_output_expr(x)
-    h=encoder.get_output_expr(x) #embedding_expr)
+    h=encoder.get_output_expr(x)
     encode = theano.function(inputs=[x],outputs=[h])    
     
     for sen in trainD:
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
-        print(encode(x.T))
+        encode(x)
+
+    print(h[-1])
 
 if __name__ == "__main__":
     args = parser.parse_args()
