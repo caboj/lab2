@@ -93,27 +93,39 @@ class Decoder(object):
         self.O = theano.shared(weights_init((len(vecs),nr_hidden)))
         self.V = theano.shared(weights_init((nr_hidden,nr_hidden)))
         self.Yh = theano.shared(weights_init((len(vecs),len(vecs))))
-        
+
+
+    
+        W = T.matrix()
+        W_in_1 = T.matrix()
+        W_in_2 = T.matrix()
+        W_feedback = T.matrix()
+        W_out = T.matrix()
+
     def get_output_expr(self,h):
-        #y0 = theano.shared(vecs['<BOS>'])
-        y0 = T.zeros((self.O.shape[0], ))
-
-        # should be initialized with h
-        h0 = T.zeros((nr_hidden,))
+        #u = T.matrix() # it is a sequence of vectors
+        h0 = h # initial state of x has to be a matrix, since
+        c = h
+        # it has to cover x[-3]
+        y0 = theano.shared(vecs['<BOS>']) # y0 is just a vector since scan has only to provide
+        # y[-1]
         
-        self.c = h
-        [y,h], _ = theano.scan(fn=self.__get_rnn_step_expr,
-                           #sequences=input_sequence,
-                           #non_sequences=[self.O,self.V,self.Yh],
-                           n_steps = 10,
-                           outputs_info=[y0,dict(initial=h0,taps=[-1])])
-        return y
 
-    def __get_rnn_step_expr(self, y_tm1, h_tm1):
-        y_t = T.tanh(T.dot(self.O,h_tm1)+T.dot(self.Yh,y_tm1))
-        h_t = T.tanh(T.dot( self.V,h_tm1))
-        return [y_t,h_t]
-        
+        ([h_vals, y_vals], updates) = theano.scan(fn=self.oneStep,
+                                                  #sequences=[],
+                                          outputs_info=[h0, y0],
+                                          non_sequences=[c,self.O, self.V,self.Yh],
+                                                  n_steps=5,
+                                          strict=True)
+        return y_vals
+    
+    def oneStep(self, h_tm1, y_tm1, c,O, V, Yh):
+
+        h_t = T.tanh(theano.dot(V,h_tm1)+theano.dot(V,c))
+        y_t = theano.dot(O,h_t)+theano.dot(Yh,y_tm1)+theano.dot(O,c)
+
+        return [h_t, y_t]
+
     def get_parameters(self):
         return [self.W, self.U]
 
@@ -129,17 +141,18 @@ def train():
     encode = theano.function(inputs=[x],outputs=h)    
 
     #l = 1
-    [y,hOut]=decoder.get_output_expr(h[-1])
-    decode = theano.function(inputs=[h[-1]],outputs=[y,hOut])    
+    c = T.vector()
+    y=decoder.get_output_expr(c)
+    decode = theano.function(inputs=[c],outputs=y,on_unused_input='warn'    )
     
     for sen in trainD:
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
         H = encode(x)
-                
+        c = H[-1]
         #l = len(sen)
-        decode(H[-1])
+        y = decode(c)
 
-    print(H)
+    print(y)
     
 
     
