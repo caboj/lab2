@@ -14,9 +14,11 @@ def main():
     global vecs
 
     args = parser.parse_args()
+
+    global nr_hidden
     nr_hidden = args.nr_hidden
     load_data()
-    #train()
+    train()
 
 def load_data():
     fns = ['qa1_single-supporting-fact_train.txt',
@@ -34,11 +36,14 @@ def load_data():
         with open('tasksv11/en/'+fn) as f:
             trainD.extend(np.array([re.sub("[^a-zA-Z]", " " , l).lower().split() for l in  f.readlines()]))
 
+    global trainD
     trainD = np.array(trainD)
     voc = np.unique(np.hstack(trainD)).tolist()
     voc.append('<BOS>')
     #print(voc)
     y = np.eye(len(voc))
+
+    global vecs
     vecs = dict(zip(voc,y))
 
 # copied from illctheanotutorial - modified for use here
