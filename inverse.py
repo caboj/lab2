@@ -47,23 +47,12 @@ def load_data():
     vecs = dict(zip(voc,y))
 
 # copied from illctheanotutorial - modified for use here
-def w_init():
-    shape = (nr_hidden,len(vecs))
+def weights_init(shape):
     a = np.random.normal(0.0, 1.0, shape)
     u, _, v = np.linalg.svd(a, full_matrices=False)
     q = u if u.shape == shape else v
     q = q.reshape(shape)
     return q
-
-# copied from illctheanotutorial - modified for use here
-def u_init():
-    shape = (nr_hidden, nr_hidden)
-    a = np.random.normal(0.0, 1.0, shape)
-    u, _, v = np.linalg.svd(a, full_matrices=False)
-    q = u if u.shape == shape else v
-    q = q.reshape(shape)
-    return q
-
 
 def embedding_init():
     return np.random.randn(1, len(vecs)) * 0.01
@@ -81,9 +70,9 @@ class EmbeddingLayer(object):
 
 # copied from illctheanotutorial - RnnLayer
 class Encoder(object):
-    def __init__(self, w_init, u_init):
-        self.W = theano.shared(w_init())
-        self.U = theano.shared(u_init())
+    def __init__(self):
+        self.W = theano.shared(weights_init((nr_hidden,len(vecs))))
+        self.U = theano.shared(weights_init((nr_hidden,nr_hidden)))
 
     def get_output_expr(self, input_sequence):
         h0 = T.zeros((self.U.shape[0], ))
@@ -100,10 +89,10 @@ class Encoder(object):
         return [self.W, self.U]
 
 class Decoder(object):
-    def __init__(self, w_init, u_init):
-        self.O = theano.shared(w_init())
-        self.V = theano.shared(u_init())
-        self.Yh = theano.shared(w_init())
+    def __init__(self):
+        self.O = theano.shared(weights_init((len(vecs),nr_hidden)))
+        self.V = theano.shared(weights_init((nr_hidden,nr_hidden)))
+        self.Yh = theano.shared(weights_init((len(vecs),len(vecs))))
         
     def get_output_expr(self,h):
         #y0 = theano.shared(vecs['<BOS>'])
@@ -130,8 +119,8 @@ class Decoder(object):
 
 def train():
     #embedding_layer = EmbeddingLayer(embedding_init)
-    encoder = Encoder(w_init, u_init)
-    decoder = Decoder(w_init, u_init)
+    encoder = Encoder()
+    decoder = Decoder()
     x = T.imatrix()
 
     #embedding_expr = embedding_layer.get_output_expr(x)
