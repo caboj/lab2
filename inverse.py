@@ -28,15 +28,15 @@ def load_data():
            'qa5_three-arg-relations_train.txt']
 
     
+    global trainD    
     trainD = []
-
 
     # split data into only lowercases words (remove punctiation and numbers) 
     for fn in fns:
         with open('tasksv11/en/'+fn) as f:
             trainD.extend(np.array([re.sub("[^a-zA-Z]", " " , l).lower().split() for l in  f.readlines()]))
 
-    global trainD
+
     trainD = np.array(trainD)
     voc = np.unique(np.hstack(trainD)).tolist()
     voc.append('<BOS>')
@@ -105,7 +105,7 @@ class Decoder(object):
         self.V = theano.shared(u_init())
         self.Yh = theano.shared(w_init())
         
-    def get_output_expr(self,h,l):
+    def get_output_expr(self,h):
         #y0 = theano.shared(vecs['<BOS>'])
         y0 = T.zeros((self.O.shape[1], ))
 
@@ -115,7 +115,7 @@ class Decoder(object):
         [y,h], _ = theano.scan(fn=self.__get_rnn_step_expr,
                            #sequences=input_sequence,
                            #non_sequences=[self.O,self.V,self.Yh],
-                           n_steps = l,
+                           n_steps = 10,
                            outputs_info=[y0,h0])
         return y
 
@@ -136,19 +136,18 @@ def train():
 
     #embedding_expr = embedding_layer.get_output_expr(x)
     h=encoder.get_output_expr(x)
-    encode = theano.function(inputs=[x],outputs=[h])    
+    encode = theano.function(inputs=[x],outputs=h)    
 
     #l = 1
-    #y=decoder.get_output_expr(h,l)
-    #decode = theano.function(inputs=[h,l],outputs=[y])    
+    [y,h]=decoder.get_output_expr(h)
+    decode = theano.function(inputs=[h],outputs=[y,h])    
     
     for sen in trainD:
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
         H = encode(x)
-        #print('H: ', H[0][-1])
-        #print(h)
-        #   l = len(sen)
-        #decode(H[0][-1],l)
+                
+        #l = len(sen)
+        decode(H[-1])
 
     print(H)
     
