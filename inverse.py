@@ -4,17 +4,21 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-parser = argparse.ArgumentParser(description='invert sentence with RNN encoder decoder')
-parser.add_argument('-H', metavar='nr_hidden', dest="nr_hidden",type=int,
-                   help='number of hidden nodes')
 
-trainD = None
-vecs = None
+def main():
+    parser = argparse.ArgumentParser(description='invert sentence with RNN encoder decoder')
+    parser.add_argument('-H', metavar='nr_hidden', dest="nr_hidden",type=int,
+                   help='number of hidden nodes', required=True)
 
-def load_data():
     global trainD
     global vecs
 
+    args = parser.parse_args()
+    nr_hidden = args.nr_hidden
+    load_data()
+    #train()
+
+def load_data():
     fns = ['qa1_single-supporting-fact_train.txt',
            'qa2_two-supporting-facts_train.txt',
            'qa3_three-supporting-facts_train.txt',
@@ -35,8 +39,7 @@ def load_data():
     voc.append('<BOS>')
     #print(voc)
     y = np.eye(len(voc))
-    vecs = {voc[i] : y[i] for i in range(len(voc))}
-
+    vecs = dict(zip(voc,y))
 
 # copied from illctheanotutorial - modified for use here
 def w_init():
@@ -147,8 +150,5 @@ def train():
 
     
 if __name__ == "__main__":
-    args = parser.parse_args()
-    nr_hidden = args.nr_hidden
-    load_data()
-    train()
+    main()
     
