@@ -96,16 +96,17 @@ class Decoder(object):
         
     def get_output_expr(self,h):
         #y0 = theano.shared(vecs['<BOS>'])
-        y0 = T.zeros((self.O.shape[1], ))
+        y0 = T.zeros((self.O.shape[0], ))
 
-        h0 = h
+        # should be initialized with h
+        h0 = T.zeros((nr_hidden,))
         
         self.c = h
         [y,h], _ = theano.scan(fn=self.__get_rnn_step_expr,
                            #sequences=input_sequence,
                            #non_sequences=[self.O,self.V,self.Yh],
                            n_steps = 10,
-                           outputs_info=[y0,h0])
+                           outputs_info=[y0,dict(initial=h0,taps=[-1])])
         return y
 
     def __get_rnn_step_expr(self, y_tm1, h_tm1):
@@ -128,8 +129,8 @@ def train():
     encode = theano.function(inputs=[x],outputs=h)    
 
     #l = 1
-    [y,h]=decoder.get_output_expr(h)
-    decode = theano.function(inputs=[h],outputs=[y,h])    
+    [y,hOut]=decoder.get_output_expr(h[-1])
+    decode = theano.function(inputs=[h[-1]],outputs=[y,hOut])    
     
     for sen in trainD:
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
