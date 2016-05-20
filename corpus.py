@@ -5,7 +5,7 @@ class Collection:
     tasks = []
     vocab = []
     vectors = {}
-    embeddings = {}
+    #embeddings = {}
 
     def __init__(self, files):
         for fileName in files:
@@ -30,22 +30,25 @@ class Collection:
     def getVectors(self, reverse=True, translated=False):
         key = str((reverse,translated))
         if key not in self.vectors:
-            vectors = {'input':[],'output':[]}
+            vecs = {'input':[],'output':[]}
             for t in self.tasks:
                 if reverse:
-                    vec = t.getReverseVectors(translated)
+                    tvec = t.getReverseVectors(translated)
                 else:
-                    vec = t.getQuestionVectors(translated)
-                vectors['input'] = np.concatenate((vectors['input'], vec['input']))
-                vectors['output'] = np.concatenate((vectors['output'], vec['output']))
-            self.vectors[key] = vectors
+                    tvec = t.getQuestionVectors(translated)
+                    # consistent output length causes
+                    # shape to be (x,3) instead of (x,)
+                    tvec['output'] = np.hstack(tvec['output'])
+                vecs['input'] = np.concatenate((vecs['input'], tvec['input']))
+                vecs['output'] = np.concatenate((vecs['output'], tvec['output']))
+            self.vectors[key] = vecs
         return self.vectors[key]
 
     def printInfo(self):
-        print '\nCollection built with file(s):'
+        print('\nCollection built with file(s):')
         for i, t in enumerate(self.tasks):
-            print '('+str(i+1)+')\t'+t.fileName
-        print '\n'
+            print('('+str(i+1)+')\t'+t.fileName)
+        print('\n')
 
     def __str__(self):
         string = ''
@@ -83,6 +86,7 @@ class Task:
         return words
 
     def translate(self, vocab):
+        print('Translating...')
         for story in self.stories:
             story.translate(vocab)
         self.translated = True
@@ -110,16 +114,14 @@ class Task:
         vecs = {'input':[],'output':[]}
         textType = 'translation' if translated else 'text'
         (bos, eos) = ([0], [1]) if translated else (['<BOS>'], ['<EOS>'])
-        print bos
-        print eos
         for st in self.stories:
             context = []
-            utterances = st.utterances
-            for i in range(len(utterances)):
-                v = getattr(utterances[i], textType)
-                if utterances[i].uType == 'answer':
-                    vecs['output'].append(np.concatenate((bos,v,eos)))
-                elif utterances[i].uType == 'question':
+            for ut in st.utterances:
+                v = getattr(ut, textType)
+                if ut.uType == 'answer':
+                    vecs['output'].append(np.concatenate(np.asarray((bos,v,eos))))
+                elif ut.uType == 'question':
+                    # The order of concatenation matters, the question should come first
                     vecs['input'].append(np.concatenate((bos,v,context,eos)))
                 else:
                     context = np.concatenate((context, v))
@@ -178,6 +180,6 @@ class Utterance():
     def __str__(self):
         string = 'type: '+ str(self.uType)
         string += '\ntext: '+ str(self.text)
-        string += '\ntranslation: '+ (str(self.translation) if len(self.translation) else 'nav')
+        string += '\ntranslation: '+ str(self.translation or 'nav')
         string += '\n'
         return string
