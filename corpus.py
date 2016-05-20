@@ -2,12 +2,10 @@ import numpy as np
 import nltk
 
 class Collection:
-    tasks = []
-    vocab = []
-    vectors = {}
-    #embeddings = {}
-
     def __init__(self, files):
+        self.tasks = []
+        self.vocab = []
+        self.vectors = {}
         for fileName in files:
             self.read_task(fileName)
 
@@ -36,8 +34,10 @@ class Collection:
                     tvec = t.getReverseVectors(translated)
                 else:
                     tvec = t.getQuestionVectors(translated)
-                vecs['input'] = np.concatenate((vecs['input'], tvec['input']))
-                vecs['output'] = np.concatenate((vecs['output'], tvec['output']))
+                #vecs['input'] = np.concatenate((vecs['input'], tvec['input']))
+                #vecs['output'] = np.concatenate((vecs['output'], tvec['output']))
+                vecs['input'] += tvec['input']
+                vecs['output'] += tvec['output']
             self.vectors[key] = vecs
         return self.vectors[key]
 
@@ -45,6 +45,7 @@ class Collection:
         print('\nCollection built with file(s):')
         for i, t in enumerate(self.tasks):
             print('('+str(i+1)+')\t'+t.fileName)
+            t.printInfo()
         print('\n')
 
     def __str__(self):
@@ -54,24 +55,27 @@ class Collection:
         return string
 
 class Task:
-    fileName = ''
-    stories = []
-    translated = False
-
     def __init__(self, fileName):
         self.fileName = fileName
+        
+        self.stories = []
         self.read_stories()
+        
+        self.translated = False
 
     def read_stories(self):
         text = []
+        nst = 0 # set to positive number to limit number of stories
         with open(self.fileName, 'rU') as f:
-            for line in f.readlines():
+            for i, line in enumerate(f.readlines()):
                 s = np.array(nltk.word_tokenize(line.strip()))
                 if s[0]=='1':
                     if text:
                         self.stories.append(Story(text))
                         text = []
-                        break
+                        if nst and (len(self.stories)==nst):
+                            print('BREAK')
+                            break
                 text.append(s)
         if text:
             self.stories.append(Story(text))
@@ -124,6 +128,11 @@ class Task:
                     context = np.concatenate((context, v))
         return vecs
 
+    def printInfo(self):
+        print('# of stories:\t  '+str(len(self.stories)))
+        utn = sum([len(st.utterances) for st in self.stories])
+        print('# of utterances:  '+str(utn))
+
     def __str__(self):
         string = 'TASK: '+self.fileName+'\n'
         for i, st in enumerate(self.stories):
@@ -131,13 +140,13 @@ class Task:
         return string
 
 class Story:
-    utterances = []
-
     def __init__(self, text):
+        self.utterances = []
         self.process_text(text)
 
     def process_text(self, text):
-        for i, s in enumerate(text):
+        self.utterances = []
+        for s in text:
             if '.' in s:
                 self.utterances.append(Utterance(s[1:], 'statement'))
             elif '?' in s:
@@ -162,13 +171,10 @@ class Story:
         return string
 
 class Utterance():
-    uType = None
-    text = []
-    translation = []
-
     def __init__(self, text, uType):
         self.text = text
         self.uType = uType
+        self.translation = []
 
     def translate(self, vocab):
         vIds = np.where(vocab==np.array_split(self.text, len(self.text)))[1]
