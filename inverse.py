@@ -102,7 +102,7 @@ class Decoder(object):
         W_feedback = T.matrix()
         W_out = T.matrix()
 
-    def get_output_expr(self,h):
+    def get_output_expr(self,h,l):
         #u = T.matrix() # it is a sequence of vectors
         h0 = h # initial state of x has to be a matrix, since
         c = h
@@ -115,7 +115,7 @@ class Decoder(object):
                                                   #sequences=[],
                                           outputs_info=[h0, y0],
                                           non_sequences=[c,self.O, self.V,self.Yh],
-                                                  n_steps=5,
+                                                  n_steps=l,
                                           strict=True)
         return y_vals
     
@@ -140,21 +140,25 @@ def train():
     h=encoder.get_output_expr(x)
     encode = theano.function(inputs=[x],outputs=h)    
 
-    #l = 1
+    l = T.scalar(dtype='int32')
     c = T.vector()
-    y=decoder.get_output_expr(c)
-    decode = theano.function(inputs=[c],outputs=y,on_unused_input='warn'    )
+    y=decoder.get_output_expr(c,l)
+    decode = theano.function(inputs=[c,l],outputs=y)
     
     for sen in trainD:
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
         H = encode(x)
         c = H[-1]
-        #l = len(sen)
-        y = decode(c)
+        y = decode(c,len(sen))
+        #pred_rev_sen = out_to_words(y)
 
     print(y)
-    
 
+'''
+def out_to_words(y):
+    for outvec in y:
+        softmax
+'''
     
 if __name__ == "__main__":
     main()
