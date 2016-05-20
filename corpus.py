@@ -36,9 +36,6 @@ class Collection:
                     tvec = t.getReverseVectors(translated)
                 else:
                     tvec = t.getQuestionVectors(translated)
-                    # consistent output length causes
-                    # shape to be (x,3) instead of (x,)
-                    tvec['output'] = np.hstack(tvec['output'])
                 vecs['input'] = np.concatenate((vecs['input'], tvec['input']))
                 vecs['output'] = np.concatenate((vecs['output'], tvec['output']))
             self.vectors[key] = vecs
@@ -119,7 +116,7 @@ class Task:
             for ut in st.utterances:
                 v = getattr(ut, textType)
                 if ut.uType == 'answer':
-                    vecs['output'].append(np.concatenate(np.asarray((bos,v,eos))))
+                    vecs['output'].append(np.concatenate((bos,v,eos)))
                 elif ut.uType == 'question':
                     # The order of concatenation matters, the question should come first
                     vecs['input'].append(np.concatenate((bos,v,context,eos)))
@@ -180,6 +177,6 @@ class Utterance():
     def __str__(self):
         string = 'type: '+ str(self.uType)
         string += '\ntext: '+ str(self.text)
-        string += '\ntranslation: '+ str(self.translation or 'nav')
+        string += '\ntranslation: '+ (str(self.translation) if len(self.translation) else 'nav')
         string += '\n'
         return string
