@@ -3,6 +3,7 @@ import re
 import numpy as np
 import theano
 import theano.tensor as T
+from corpus import *
 
 def main():
     parser = argparse.ArgumentParser(description='invert sentence with RNN encoder decoder')
@@ -21,7 +22,7 @@ def main():
     load_data()
     train()
 
-def load_data():
+def load_data_OLD():
     fns = ['qa1_single-supporting-fact_train.txt']
            #'qa2_two-supporting-facts_train.txt',
            #'qa3_three-supporting-facts_train.txt',
@@ -49,6 +50,39 @@ def load_data():
     global idx_to_word
     idx_to_word = dict(zip(range(len(voc)),voc))
     
+def load_data():
+    '''
+    fns = ['qa1_single-supporting-fact',
+           'qa2_two-supporting-facts',
+           'qa3_three-supporting-facts',
+           'qa4_two-arg-relations',
+           'qa5_three-arg-relations']
+    #'''
+    fns = ['qa1_single-supporting-fact']
+    
+    files = []
+    for fn in fns:
+        files.append('tasksv11/en/'+fn+'_train.txt')
+        #files.append('tasksv11/en/'+fn+'_test.txt')
+
+    C = Collection(files)
+    C.printInfo()
+    
+    voc = C.getVocabulary()
+    C.translate()
+
+    vectors = C.getVectors(translated=False, reverse=True)
+    global trainD
+    trainD = vectors['input']
+
+    y = np.eye(len(voc))
+    global vecs
+    vecs = dict(zip(voc,y))
+    global word_to_idx
+    word_to_idx = dict(zip(voc,range(len(voc))))
+    global idx_to_word
+    idx_to_word = dict(zip(range(len(voc)),voc))
+
 # copied from illctheanotutorial - modified for use here
 def weights_init(shape):
     a = np.random.normal(0.0, 1.0, shape)
@@ -165,7 +199,7 @@ def train():
             y = x[::-1]
             l = len(sen)
             y_pred, cost = trainF(x,y,l)
-            print('it: %d\t cost:%.5f'%(i,cost),end='\r')
+            #print('it: %d\t cost:%.5f'%(i,cost),end='\r')
 
     print()    
     Y = []

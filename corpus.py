@@ -1,7 +1,7 @@
 import numpy as np
 import nltk
 
-class Collection:
+class Collection(object):
     def __init__(self, files):
         self.tasks = []
         self.vocab = []
@@ -13,21 +13,25 @@ class Collection:
         self.tasks.append(Task(fileName))
 
     def translate(self):
+        print('\nTranslating collection...'),
         vocab = self.getVocabulary()
         for t in self.tasks:
             t.translate(vocab)
+        print('finished')
 
     def getVocabulary(self):
         if not len(self.vocab):
             words = []
             for t in self.tasks:
                 words += t.getWords()
-            self.vocab = np.concatenate((['<BOS>','<EOS>'], np.unique(words)))
+            #self.vocab = np.concatenate((['<BOS>','<EOS>'], np.unique(words)))
+            self.vocab = np.unique(words)
         return self.vocab
 
     def getVectors(self, reverse=True, translated=False):
         key = str((reverse,translated))
         if key not in self.vectors:
+            print('\nConstructing input and output vectors...'),
             vecs = {'input':[],'output':[]}
             for t in self.tasks:
                 if reverse:
@@ -39,6 +43,7 @@ class Collection:
                 vecs['input'] += tvec['input']
                 vecs['output'] += tvec['output']
             self.vectors[key] = vecs
+            print('finished')
         return self.vectors[key]
 
     def printInfo(self):
@@ -54,7 +59,7 @@ class Collection:
             string += '\n'+str(t)
         return string
 
-class Task:
+class Task(object):
     def __init__(self, fileName):
         self.fileName = fileName
         
@@ -87,7 +92,6 @@ class Task:
         return words
 
     def translate(self, vocab):
-        print('Translating...')
         for story in self.stories:
             story.translate(vocab)
         self.translated = True
@@ -95,7 +99,8 @@ class Task:
     def getReverseVectors(self, translated=False):
         vecs = {'input':[],'output':[]}
         textType = 'translation' if translated else 'text'
-        (bos, eos) = ([0], [1]) if translated else (['<BOS>'], ['<EOS>'])
+        #(bos, eos) = ([0], [1]) if translated else (['<BOS>'], ['<EOS>'])
+        (bos, eos) = ([], [])
         for st in self.stories:
             utterances = st.utterances
             for i in range(len(utterances)):
@@ -139,7 +144,7 @@ class Task:
             string += '\nSTORY '+str(i+1)+'\n'+str(st)
         return string
 
-class Story:
+class Story(object):
     def __init__(self, text):
         self.utterances = []
         self.process_text(text)
@@ -170,7 +175,7 @@ class Story:
             string += '\n'+str(u)
         return string
 
-class Utterance():
+class Utterance(object):
     def __init__(self, text, uType):
         self.text = text
         self.uType = uType
