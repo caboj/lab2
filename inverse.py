@@ -152,19 +152,14 @@ def train():
     updates = get_sgd_updates(cost, encoder.get_parameters() + decoder.get_parameters())
     
     trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
-    '''
+    
     for sen in trainD:
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
-        H = encode(x)
-        #c = H[-1]
-        y_x = decode(H[-1],len(sen))
-        #inv_sen = sen[::-1]
-        #y_true = np.array([vecs[inv_sen[i]] for i in range(len(sen))],dtype=np.int32)
-        #cost = sum([T.nnet.categorical_crossentropy(pw,tw) for pw,tw in zip(y_x,x)])
-        #updates = get_sgd_updates(cost, decoder.get_parameters())
-
-    print(y_x)
-    '''
+        y = x[::-1]
+        l = len(sen)
+        y_pred, _ = trainF(x,y,l)
+    
+    
     
 if __name__ == "__main__":
     main()
