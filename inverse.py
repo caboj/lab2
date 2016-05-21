@@ -140,12 +140,12 @@ def train():
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
         H = encode(x)
         c = H[-1]
-        y = decode(c,len(sen))
-        #p_y = [y_dist[w] for w in [word_to_idx[sen[i]] for i in range(len(sen))]]
-        #cost = np.sum([1-yw[] for yw in y])
-        
+        y_x = decode(c,len(sen))
+        inv_sen = sen[::-1]
+        y_true = np.array([vecs[inv_sen[i]] for i in range(len(sen))],dtype=np.int32)
+        cost = [T.nnet.categorical_crossentropy(pw,tw) for pw,tw in zip(y_x,x)]
 
-    #print(p_y)
+    print(done)
 
     
 if __name__ == "__main__":
