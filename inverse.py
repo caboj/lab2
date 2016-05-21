@@ -118,35 +118,53 @@ class Decoder(object):
         return [h_t, y_t]
 
     def get_parameters(self):
-        return [self.W, self.U]
+        return [self.O, self.V,self.Yh]
 
+def get_sgd_updates(cost, params, lr=0.01):
+    grads = T.grad(cost=cost, wrt=params)
+    updates = []
+    for p, g in zip(params, grads):
+        updates.append([p, p - lr * g])
+    return updates
+
+def get_cost(y_pred,y):
+
+    cost_w, _ = theano.scan(fn=lambda y_pred_w,y_w : T.nnet.categorical_crossentropy(y_pred_w,y_w),
+                            sequences=[y_pred,y])
+    
+
+    return T.sum(cost_w)
 
 def train():
-    #embedding_layer = EmbeddingLayer(embedding_init)
+    
     encoder = Encoder()
     decoder = Decoder()
+
     x = T.imatrix()
+    y = T.imatrix()
 
-    #embedding_expr = embedding_layer.get_output_expr(x)
     h=encoder.get_output_expr(x)
-    encode = theano.function(inputs=[x],outputs=h)    
-
-    l = T.scalar(dtype='int32')
-    c = T.vector()
-    y=decoder.get_output_expr(c,l)
-    decode = theano.function(inputs=[c,l],outputs=y)
     
+    l = T.scalar(dtype='int32')
+    y_pred=decoder.get_output_expr(h[-1],l)
+        
+    cost = get_cost(y_pred,y)
+    updates = get_sgd_updates(cost, encoder.get_parameters() + decoder.get_parameters())
+    
+    trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
+    '''
     for sen in trainD:
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
         H = encode(x)
-        c = H[-1]
-        y_x = decode(c,len(sen))
-        inv_sen = sen[::-1]
-        y_true = np.array([vecs[inv_sen[i]] for i in range(len(sen))],dtype=np.int32)
-        cost = [T.nnet.categorical_crossentropy(pw,tw) for pw,tw in zip(y_x,x)]
+        #c = H[-1]
+        y_x = decode(H[-1],len(sen))
+        #inv_sen = sen[::-1]
+        #y_true = np.array([vecs[inv_sen[i]] for i in range(len(sen))],dtype=np.int32)
+        #cost = sum([T.nnet.categorical_crossentropy(pw,tw) for pw,tw in zip(y_x,x)])
+        #updates = get_sgd_updates(cost, decoder.get_parameters())
 
-    print(done)
-
+    print(y_x)
+    '''
     
 if __name__ == "__main__":
     main()
