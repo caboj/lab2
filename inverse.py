@@ -11,9 +11,8 @@ def main():
                    help='number of hidden nodes', required=True)
 
     global trainD
-    global vecs
-    global word_to_idx
-    global idx_to_word
+    global C
+    global voc_len
 
     args = parser.parse_args()
 
@@ -23,34 +22,6 @@ def main():
     embedding_size = 40
     load_data()
     train()
-
-def load_data_OLD():
-    fns = ['qa1_single-supporting-fact_train.txt']
-           #'qa2_two-supporting-facts_train.txt',
-           #'qa3_three-supporting-facts_train.txt',
-           #'qa4_two-arg-relations_train.txt',
-           #'qa5_three-arg-relations_train.txt']
-
-    
-    global trainD    
-    trainD = []
-
-    # split data into only lowercases words (remove punctiation and numbers) 
-    for fn in fns:
-        with open('tasksv11/en/'+fn) as f:
-            trainD.extend(np.array([re.sub("[^a-zA-Z]", " " , l).lower().split() for l in  f.readlines()]))
-
-
-    trainD = np.array(trainD)
-    voc = np.unique(np.hstack(trainD)).tolist()
-    y = np.eye(len(voc))
-
-    global vecs
-    vecs = dict(zip(voc,y))
-    global word_to_idx
-    word_to_idx = dict(zip(voc,range(len(voc))))
-    global idx_to_word
-    idx_to_word = dict(zip(range(len(voc)),voc))
     
 def load_data():
     '''
@@ -67,23 +38,19 @@ def load_data():
         files.append('tasksv11/en/'+fn+'_train.txt')
         #files.append('tasksv11/en/'+fn+'_test.txt')
 
+    global C
     C = Collection(files)
     C.printInfo()
     
+    global voc_len
     voc = C.getVocabulary()
+    voc_len = len(voc)
+
     C.translate()
 
-    vectors = C.getVectors(translated=False, reverse=True)
+    vectors = C.getVectors(translated=False, reverse=True, oneHot=True)
     global trainD
-    trainD = vectors['input']
-
-    y = np.eye(len(voc))
-    global vecs
-    vecs = dict(zip(voc,y))
-    global word_to_idx
-    word_to_idx = dict(zip(voc,range(len(voc))))
-    global idx_to_word
-    idx_to_word = dict(zip(range(len(voc)),voc))
+    trainD = vectors #['input']
 
 # copied from illctheanotutorial - modified for use here
 def weights_init(shape):
@@ -97,12 +64,12 @@ def gates_init(size):
     return np.random.normal(0.0, 1.0, size)
     
 def embedding_init():
-    return np.random.randn(1, len(vecs)) * 0.01
+    return np.random.randn(1, voc_len) * 0.01
 
 # copied from illctheanotutorial - modified for use here
 class EmbeddingLayer(object):
     def __init__(self, embedding_init):
-        self.E = theano.shared(weights_init((nr_hidden,len(vecs))))
+        self.E = theano.shared(weights_init((nr_hidden,voc_len)))
 
     def get_output_expr(self, input_expr):
         return self.embedding_matrix[input_expr]
@@ -116,7 +83,7 @@ class Encoder(object):
         self.W = theano.shared(weights_init((nr_hidden,embedding_size)))
         self.U = theano.shared(weights_init((nr_hidden,nr_hidden)))
         self.V = theano.shared(weights_init((nr_hidden,nr_hidden)))
-        self.E = theano.shared(weights_init((embedding_size,len(vecs))))
+        self.E = theano.shared(weights_init((embedding_size,voc_len)))
         
     def get_output_expr(self, input_sequence):
         h0 = T.zeros((self.U.shape[0], ))
@@ -135,7 +102,7 @@ class Encoder(object):
 
 class GRUEncoder(object):
     def __init__(self):
-        self.E = theano.shared(weights_init((embedding_size,len(vecs))))
+        self.E = theano.shared(weights_init((embedding_size,voc_len)))
         self.W = theano.shared(weights_init((nr_hidden,embedding_size)))
         self.V = theano.shared(weights_init((nr_hidden,nr_hidden)))
         self.U = theano.shared(weights_init((nr_hidden,nr_hidden)))
@@ -168,7 +135,7 @@ class GRUEncoder(object):
 
 class Decoder(object):
     def __init__(self):
-        self.E = theano.shared((len(vecs),embedding_size))
+        self.E = theano.shared((voc_len,embedding_size))
         self.Ch = theano.shared(weights_init((nr_hidden,nr_hidden)))
         self.Co = theano.shared(weights_init((embedding_size,nr_hidden)))
         self.Oh = theano.shared(weights_init((embedding_size,nr_hidden)))
@@ -238,7 +205,7 @@ class GRUDecoder(object):
 
 class ProbFromEmbed(object):
     def __init__(self):
-        self.E = theano.shared(weights_init((embedding_size,len(vecs))))
+        self.E = theano.shared(weights_init((embedding_size,voc_len)))
 
     def get_output_expr(self,y_e):
         y = T.dot(y_e,self.E)
@@ -283,26 +250,60 @@ def train():
     
     test = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
 
-    for i in range(1):
-        for sen in trainD:
-            x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
-            y = x[::-1]
-            l = len(sen)
+    for i in range(10):
+        for x, y in zip(trainD['input'], trainD['output']):
+            l = len(x)
             y_pred, cost = trainF(x,y,l)
+
+            # INCOMPATIBLE WITH PYTHON 2.x
             #print('it: %d\t cost:%.5f'%(i,cost),end='\r')
 
     print()    
     Y = []
-    for sen in trainD:
-        x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
-        y = x[::-1]
-        l = len(sen)
+
+    # debug: seperate test set
+    '''
+    testC = Collection(['tasksv11/en/qa1_single-supporting-fact_test.txt'])
+    testC.translate()
+    testD = testC.getVectors(translated=False, reverse=True, oneHot=True)
+    #'''
+
+    # debug: training set = test set
+    #'''
+    testC = C
+    testD = trainD 
+    #'''
+
+    for x, y in zip(testD['input'], testD['output']):
+        l = len(x)
         y_pred, _ = test(x,y,l)
         pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
-        Y.append([idx_to_word[pred_w] for pred_w in pred_sen])
-
-    print(Y)
+        Y.append(C.getVocabulary()[pred_sen])
     
+    #print(Y)
+    
+    original_input = testC.getVectors(translated=False, reverse=True)
+
+    for i in range(5):
+        #print trainD[i]
+        print('\n')
+        print('----------------------------------')
+        print('IN')
+        print(original_input['input'][i])
+        print('\nOUT')
+        print(original_input['output'][i])
+        print('\nRESULT')
+        print(Y[i])
+        print('----------------------------------')
+        #print ''
+        #print 'check: '+str(len(original_input['output'][i])==len(Y[i]))
+
+    check = 0
+    for a, b in zip(original_input['output'], Y):
+        if not np.array_equal(a,b):
+            check+=1
+    print('')
+    print(check)
     
 if __name__ == "__main__":
     main()

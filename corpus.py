@@ -19,6 +19,7 @@ class Collection(object):
             t.translate(vocab)
         print('finished')
 
+
     def getVocabulary(self):
         if not len(self.vocab):
             words = []
@@ -28,16 +29,16 @@ class Collection(object):
             self.vocab = np.unique(words)
         return self.vocab
 
-    def getVectors(self, reverse=True, translated=False):
-        key = str((reverse,translated))
+    def getVectors(self, reverse=True, translated=False, oneHot=False):
+        key = str((reverse,translated,oneHot))
         if key not in self.vectors:
             print('\nConstructing input and output vectors...'),
             vecs = {'input':[],'output':[]}
             for t in self.tasks:
                 if reverse:
-                    tvec = t.getReverseVectors(translated)
+                    tvec = t.getReverseVectors(translated, oneHot)
                 else:
-                    tvec = t.getQuestionVectors(translated)
+                    tvec = t.getQuestionVectors(translated, oneHot)
                 #vecs['input'] = np.concatenate((vecs['input'], tvec['input']))
                 #vecs['output'] = np.concatenate((vecs['output'], tvec['output']))
                 vecs['input'] += tvec['input']
@@ -96,11 +97,13 @@ class Task(object):
             story.translate(vocab)
         self.translated = True
 
-    def getReverseVectors(self, translated=False):
+    def getReverseVectors(self, translated=False, oneHot=False):
         vecs = {'input':[],'output':[]}
         textType = 'translation' if translated else 'text'
+        textType = 'oneHot' if oneHot else textType
         #(bos, eos) = ([0], [1]) if translated else (['<BOS>'], ['<EOS>'])
         (bos, eos) = ([], [])
+        dataType = np.int32 if (oneHot or translated) else np.str
         for st in self.stories:
             utterances = st.utterances
             for i in range(len(utterances)):
@@ -112,25 +115,31 @@ class Task(object):
                     v = np.concatenate((q, a))
                 else:
                     v = getattr(utterances[i], textType)
-                vecs['input'].append(np.concatenate((bos, v, eos)))
-                vecs['output'].append(np.concatenate((bos, v[::-1], eos)))
+                #vecs['input'].append(np.concatenate((bos, v, eos)))
+                #vecs['output'].append(np.concatenate((bos, v[::-1], eos)))
+                vecs['input'].append(np.array(v, dtype=dataType))
+                vecs['output'].append(np.array(v[::-1], dtype=dataType))
         return vecs
 
-    def getQuestionVectors(self, translated=False):
+    def getQuestionVectors(self, translated=False, oneHot=False):
         vecs = {'input':[],'output':[]}
         textType = 'translation' if translated else 'text'
+        textType = 'oneHot' if oneHot else textType
         (bos, eos) = ([0], [1]) if translated else (['<BOS>'], ['<EOS>'])
+        dataType = np.int32 if (oneHot or translated) else np.str
         for st in self.stories:
             context = []
             for ut in st.utterances:
                 v = getattr(ut, textType)
                 if ut.uType == 'answer':
-                    vecs['output'].append(np.concatenate((bos,v,eos)))
+                    #vecs['output'].append(np.concatenate((bos,v,eos)))
+                    vecs['output'].append(np.array(v, dtype=dataType))
                 elif ut.uType == 'question':
                     # The order of concatenation matters, the question should come first
-                    vecs['input'].append(np.concatenate((bos,v,context,eos)))
+                    #vecs['input'].append(np.concatenate((bos,v,context,eos)))
+                    vecs['input'].append(np.array(np.concatenate((v,context)), dtype=dataType))
                 else:
-                    context = np.concatenate((context, v))
+                    context = np.concatenate((context, v)) if len(context) else v
         return vecs
 
     def printInfo(self):
@@ -180,10 +189,14 @@ class Utterance(object):
         self.text = text
         self.uType = uType
         self.translation = []
+        self.oneHot = []
 
     def translate(self, vocab):
         vIds = np.where(vocab==np.array_split(self.text, len(self.text)))[1]
         self.translation = vIds
+
+        y = np.eye(len(vocab))
+        self.oneHot = y[vIds]
 
     def __str__(self):
         string = 'type: '+ str(self.uType)
