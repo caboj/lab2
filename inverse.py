@@ -12,6 +12,8 @@ def main():
     global trainD
     global vecs
     global word_to_idx
+    global idx_to_word
+
     args = parser.parse_args()
 
     global nr_hidden
@@ -44,6 +46,8 @@ def load_data():
     vecs = dict(zip(voc,y))
     global word_to_idx
     word_to_idx = dict(zip(voc,range(len(voc))))
+    global idx_to_word
+    idx_to_word = dict(zip(range(len(voc)),voc))
     
 # copied from illctheanotutorial - modified for use here
 def weights_init(shape):
@@ -151,14 +155,29 @@ def train():
     cost = get_cost(y_pred,y)
     updates = get_sgd_updates(cost, encoder.get_parameters() + decoder.get_parameters())
     
-    trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
+    trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost],updates=updates)
     
+    test = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
+
+    for i in range(10):
+        for sen in trainD:
+            x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
+            y = x[::-1]
+            l = len(sen)
+            y_pred, cost = trainF(x,y,l)
+            print('it: %d\t cost:%.5f'%(i,cost),end='\r')
+
+    print()    
+    Y = []
     for sen in trainD:
         x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
         y = x[::-1]
         l = len(sen)
-        y_pred, _ = trainF(x,y,l)
-    
+        y_pred, _ = test(x,y,l)
+        pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
+        Y.append([idx_to_word[pred_w] for pred_w in pred_sen])
+
+    print(Y)
     
     
 if __name__ == "__main__":
