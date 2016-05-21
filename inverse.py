@@ -4,7 +4,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-
 def main():
     parser = argparse.ArgumentParser(description='invert sentence with RNN encoder decoder')
     parser.add_argument('-H', metavar='nr_hidden', dest="nr_hidden",type=int,
@@ -12,7 +11,7 @@ def main():
 
     global trainD
     global vecs
-
+    global word_to_idx
     args = parser.parse_args()
 
     global nr_hidden
@@ -21,11 +20,11 @@ def main():
     train()
 
 def load_data():
-    fns = ['qa1_single-supporting-fact_train.txt',
-           'qa2_two-supporting-facts_train.txt',
-           'qa3_three-supporting-facts_train.txt',
-           'qa4_two-arg-relations_train.txt',
-           'qa5_three-arg-relations_train.txt']
+    fns = ['qa1_single-supporting-fact_train.txt']
+           #'qa2_two-supporting-facts_train.txt',
+           #'qa3_three-supporting-facts_train.txt',
+           #'qa4_two-arg-relations_train.txt',
+           #'qa5_three-arg-relations_train.txt']
 
     
     global trainD    
@@ -39,13 +38,13 @@ def load_data():
 
     trainD = np.array(trainD)
     voc = np.unique(np.hstack(trainD)).tolist()
-    voc.append('<BOS>')
-    #print(voc)
     y = np.eye(len(voc))
 
     global vecs
     vecs = dict(zip(voc,y))
-
+    global word_to_idx
+    word_to_idx = dict(zip(voc,range(len(voc))))
+    
 # copied from illctheanotutorial - modified for use here
 def weights_init(shape):
     a = np.random.normal(0.0, 1.0, shape)
@@ -94,20 +93,12 @@ class Decoder(object):
         self.V = theano.shared(weights_init((nr_hidden,nr_hidden)))
         self.Yh = theano.shared(weights_init((len(vecs),len(vecs))))
 
-
-    
-        W = T.matrix()
-        W_in_1 = T.matrix()
-        W_in_2 = T.matrix()
-        W_feedback = T.matrix()
-        W_out = T.matrix()
-
     def get_output_expr(self,h,l):
         #u = T.matrix() # it is a sequence of vectors
         h0 = h # initial state of x has to be a matrix, since
         c = h
         # it has to cover x[-3]
-        y0 = theano.shared(vecs['<BOS>']) # y0 is just a vector since scan has only to provide
+        y0 = theano.shared(np.zeros(len(vecs))) # y0 is just a vector since scan has only to provide
         # y[-1]
         
 
@@ -117,7 +108,7 @@ class Decoder(object):
                                           non_sequences=[c,self.O, self.V,self.Yh],
                                                   n_steps=l,
                                           strict=True)
-        return y_vals
+        return T.nnet.softmax(y_vals)
     
     def oneStep(self, h_tm1, y_tm1, c,O, V, Yh):
 
@@ -150,15 +141,12 @@ def train():
         H = encode(x)
         c = H[-1]
         y = decode(c,len(sen))
-        #pred_rev_sen = out_to_words(y)
+        #p_y = [y_dist[w] for w in [word_to_idx[sen[i]] for i in range(len(sen))]]
+        #cost = np.sum([1-yw[] for yw in y])
+        
 
-    print(y)
+    #print(p_y)
 
-'''
-def out_to_words(y):
-    for outvec in y:
-        softmax
-'''
     
 if __name__ == "__main__":
     main()
