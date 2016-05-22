@@ -27,12 +27,12 @@ class Model:
             updates.append([p, p - lr * g])
         return updates
 
-    def get_cost(self,y_pred,y):
-
+    def get_cost(self,y_pred,y,params,lmbd):
+        p = sum([T.square(par).sum() for par in params])
         cost_w, _ = theano.scan(fn=lambda y_pred_w,y_w : T.nnet.categorical_crossentropy(y_pred_w,y_w),
                                 sequences=[y_pred,y])
 
-        return T.sum(cost_w)
+        return (1-lmbd)*T.sum(cost_w)+lmbd*p
 
 # copied from illctheanotutorial - RnnLayer
 class Encoder(Model):

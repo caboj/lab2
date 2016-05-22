@@ -51,9 +51,9 @@ def run_model(gru):
     l = T.scalar(dtype='int32')
     y_e=decoder.get_output_expr(c,l)
     y_pred = get_y.get_output_expr(y_e)
-    
-    cost = m.get_cost(y_pred,y)
-    updates = m.get_sgd_updates(cost, encoder.get_parameters() + decoder.get_parameters() + get_y.get_parameters())
+    params = encoder.get_parameters() + decoder.get_parameters() + get_y.get_parameters()
+    cost = m.get_cost(y_pred,y,params,.2)
+    updates = m.get_sgd_updates(cost, params)
     
     trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost],updates=updates)
     
