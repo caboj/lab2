@@ -17,10 +17,6 @@ def main():
                         help='set to True if model should use gated units')
     parser.set_defaults(gru=False)
 
-    global trainD
-    global vecs
-    global word_to_idx
-    global idx_to_word
 
     args = parser.parse_args()
 
@@ -28,12 +24,16 @@ def main():
     nr_hidden = args.nr_hidden
     global embedding_size
     embedding_size = args.embedding_size
+    
+    global C
     load_data()
+    
     Y = run_model(args.gru)
 
 def run_model(gru):
-
-    m = Model(nr_hidden,embedding_size,len(vecs))
+    voc_len = len(C.getVocabulary())
+    
+    m = Model(nr_hidden,embedding_size,voc_len)
     if gru:
         encoder = GRUEncoder(m)
         decoder = GRUDecoder(m)
@@ -59,26 +59,64 @@ def run_model(gru):
     
     test = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
 
+    trainD = C.getVectors(translated=False, reverse=True, oneHot=True)
     for i in range(1):
-        for sen in trainD:
-            x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
-            y = x[::-1]
-            l = len(sen)
+        for x, y in zip(trainD['input'], trainD['output']):
+            l = len(x)
             y_pred, cost = trainF(x,y,l)
+
+            # INCOMPATIBLE WITH PYTHON 2.x
             #print('it: %d\t cost:%.5f'%(i,cost),end='\r')
 
     print()    
     Y = []
-    for sen in trainD:
-        x = np.array([vecs[sen[i]] for i in range(len(sen))],dtype=np.int32)
-        y = x[::-1]
-        l = len(sen)
+
+    # debug: seperate test set
+    '''
+    testC = Collection(['tasksv11/en/qa1_single-supporting-fact_test.txt'])
+    testC.translate()
+    testD = testC.getVectors(translated=False, reverse=True, oneHot=True)
+    #'''
+
+    # debug: training set = test set
+    #'''
+    testC = C
+    testD = trainD 
+    #'''
+
+    for x, y in zip(testD['input'], testD['output']):
+        l = len(x)
         y_pred, _ = test(x,y,l)
         pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
-        Y.append([idx_to_word[pred_w] for pred_w in pred_sen])
+        Y.append(testC.getVocabulary()[pred_sen])
+    
+    #print(Y)
+    
+    #'''
+    # debug: print some information on and examples of output
 
-    print(Y)
+    original_input = testC.getVectors(translated=False, reverse=True)
 
+    for i in range(5):
+        #print trainD[i]
+        print('\n')
+        print('----------------------------------')
+        print('IN')
+        print(original_input['input'][i])
+        print('\nOUT')
+        print(original_input['output'][i])
+        print('\nRESULT')
+        print(Y[i])
+        print('----------------------------------')
+        #print ''
+        #print 'check: '+str(len(original_input['output'][i])==len(Y[i]))
+
+    check = 0
+    for a, b in zip(original_input['output'], Y):
+        if not np.array_equal(a,b):
+            check+=1
+    print('\n# errors: '+str(check))
+    #'''
         
 def load_data():
     '''
@@ -95,25 +133,11 @@ def load_data():
         files.append('tasksv11/en/'+fn+'_train.txt')
         #files.append('tasksv11/en/'+fn+'_test.txt')
 
+    global C
     C = Collection(files)
     C.printInfo()
     
-    voc = C.getVocabulary()
     C.translate()
-
-    vectors = C.getVectors(translated=False, reverse=True)
-
-    global trainD
-    trainD = vectors['input']
-
-    
-    y = np.eye(len(voc))
-    global vecs
-    vecs = dict(zip(voc,y))
-    global word_to_idx
-    word_to_idx = dict(zip(voc,range(len(voc))))
-    global idx_to_word
-    idx_to_word = dict(zip(range(len(voc)),voc))
 
 if __name__ == "__main__":
     main()
