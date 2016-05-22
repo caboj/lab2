@@ -51,6 +51,8 @@ def main():
     evaluate(Y)
 
 def run_model(gru):
+
+    print('compiling theano computational graph ... ')
     voc_len = len(C.getVocabulary())
     
     m = Model(nr_hidden,embedding_size,voc_len)
@@ -75,6 +77,9 @@ def run_model(gru):
         c=encoder.get_output_expr(x)
     
     l = T.scalar(dtype='int32')
+
+    lr = 0.1
+
     if embed:
         y_e=decoder.get_output_expr(c,l)
         y_pred = T.nnet.softmax(get_y.get_output_expr(y_e))
@@ -83,23 +88,27 @@ def run_model(gru):
         
     params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() + get_y.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
     
-    cost = m.get_cost(y_pred,y,params,.02)
-    updates = m.get_sgd_updates(cost, params)
+    cost = m.get_cost(y_pred,y,params,.001)
+    updates = m.get_sgd_updates(cost, params, lr)
     
     trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost],updates=updates)
     
     test = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
 
+    print('training ... ')
+
     for i in range(iters):
+        lr = lr/2 if i>3 else lr
         for x, y in zip(trainD['input'], trainD['output']):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
 
-            # INCOMPATIBLE WITH PYTHON 2.x
-            #print('it: %d\t cost:%.5f'%(i,cost),end='\r')
+                                              # INCOMPATIBLE WITH PYTHON 2.x
+        print(' it: %d\t cost:\t%.5f'%(i,cost))#,end='\r')
 
     Y = []
 
+    print('\ntesting ... ')
     for x, y in zip(testD['input'], testD['output']):
         l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
@@ -111,25 +120,9 @@ def run_model(gru):
 
 
 def evaluate(pred_y):
-    #'''
-    # debug: print some information on and examples of output
-
-    original_input = testC.getVectors(translated=False, reverse)
-    '''
-    for i in range(5):
-        #print trainD[i]
-        print('\n')
-        print('----------------------------------')
-        print('IN')
-        print(original_input['input'][i])
-        print('\nOUT')
-        print(original_input['output'][i])
-        print('\nRESULT')
-        print(Y[i])
-        print('----------------------------------')
-        #print ''
-        #print 'check: '+str(len(original_input['output'][i])==len(Y[i]))
-    '''
+    
+    print('evaluating ...')
+    original_input = testC.getVectors(translated=False, reverse=reverse)
     check = 0
     tot = 0
     for a, b in zip(original_input['output'], pred_y):
@@ -142,14 +135,15 @@ def evaluate(pred_y):
     
         
 def load_data():
-    '''
+    print('loading data ...')
+    #'''
     fns = ['qa1_single-supporting-fact',
            'qa2_two-supporting-facts',
            'qa3_three-supporting-facts',
            'qa4_two-arg-relations',
            'qa5_three-arg-relations']
-    '''
-    fns = ['qa1_single-supporting-fact']
+    #'''
+    #fns = ['qa1_single-supporting-fact']
     
     files = []
     for fn in fns:
@@ -162,16 +156,16 @@ def load_data():
     C.translate()
 
     global trainD
-    trainD = C.getVectors(translated=False, reverse, oneHot=True)
+    trainD = C.getVectors(translated=False, reverse=reverse, oneHot=True)
 
-    '''
+    #'''
     fns = ['qa1_single-supporting-fact',
            'qa2_two-supporting-facts',
            'qa3_three-supporting-facts',
            'qa4_two-arg-relations',
            'qa5_three-arg-relations']
-    '''
-    fns = ['qa1_single-supporting-fact']
+    #'''
+    #fns = ['qa1_single-supporting-fact']
     
     files = []
     for fn in fns:
@@ -181,7 +175,7 @@ def load_data():
     testC = Collection(files)
     testC.translate()
     global testD
-    testD = testC.getVectors(translated=False, reverse, oneHot=True)
+    testD = testC.getVectors(translated=False, reverse=reverse, oneHot=True)
 
     
 if __name__ == "__main__":
