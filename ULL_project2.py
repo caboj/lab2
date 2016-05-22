@@ -83,7 +83,7 @@ def run_model(gru):
         
     params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() + get_y.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
     
-    cost = m.get_cost(y_pred,y,params,.2)
+    cost = m.get_cost(y_pred,y,params,.02)
     updates = m.get_sgd_updates(cost, params)
     
     trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost],updates=updates)
@@ -133,7 +133,8 @@ def evaluate(pred_y):
     for a, b in zip(original_input['output'], pred_y):
         if not np.array_equal(a,b):
             check+=1
-    print('\n# errors: '+str(check))
+    percentage = (len(pred_y)-check)*1.0/len(pred_y)
+    print('\n# errors: '+str(check) + ' --> precision: ' + str(percentage) +'%')
     
         
 def load_data():
@@ -149,30 +150,34 @@ def load_data():
     files = []
     for fn in fns:
         files.append('tasksv11/en/'+fn+'_train.txt')
-        #files.append('tasksv11/en/'+fn+'_test.txt')
-
+        
     global C
     C = Collection(files)
-    C.printInfo()
+    #C.printInfo()
     
     C.translate()
 
     global trainD
     trainD = C.getVectors(translated=False, reverse=True, oneHot=True)
 
+    '''
+    fns = ['qa1_single-supporting-fact',
+           'qa2_two-supporting-facts',
+           'qa3_three-supporting-facts',
+           'qa4_two-arg-relations',
+           'qa5_three-arg-relations']
+    '''
+    fns = ['qa1_single-supporting-fact']
     
+    files = []
+    for fn in fns:
+        files.append('tasksv11/en/'+fn+'_test.txt')
+
     global testC
-    testC = Collection(['tasksv11/en/qa1_single-supporting-fact_test.txt'])
+    testC = Collection(files)
     testC.translate()
     global testD
     testD = testC.getVectors(translated=False, reverse=True, oneHot=True)
-    '''
-
-    global testD
-    global testC
-    testC = C
-    testD = trainD
-    '''
 
     
 if __name__ == "__main__":
