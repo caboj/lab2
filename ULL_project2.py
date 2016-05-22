@@ -103,8 +103,9 @@ def run_model(gru):
     for x, y in zip(testD['input'], testD['output']):
         l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
-        pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
-        Y.append(testC.getVocabulary()[pred_sen])
+        Y.append([np.argmax(y_pred[i]) for i in range(len(y_pred))])
+        #pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
+        #Y.append(testC.getVocabulary()[pred_sen])
     
     return Y
 
@@ -113,7 +114,7 @@ def evaluate(pred_y):
     #'''
     # debug: print some information on and examples of output
 
-    original_input = testC.getVectors(translated=False, reverse=True)
+    #original_input = testC.getVectors(translated=False, reverse=True)
     '''
     for i in range(5):
         #print trainD[i]
@@ -130,7 +131,8 @@ def evaluate(pred_y):
         #print 'check: '+str(len(original_input['output'][i])==len(Y[i]))
     '''
     check = 0
-    for a, b in zip(original_input['output'], pred_y):
+    for a, b in zip(testD['output'], pred_y):
+        print(a,' -- ', b)
         if not np.array_equal(a,b):
             check+=1
     percentage = (len(pred_y)-check)*1.0/len(pred_y)
