@@ -13,10 +13,17 @@ def main():
                         help='number of hidden nodes', required=True)
     parser.add_argument('-E', metavar='embedding_size', dest="embedding_size",type=int,
                         help='word embedding layer size')
+    parser.add_argument('-I', metavar='iters', dest="iters",type=int,
+                        help='number of training iterations')
     parser.add_argument('--gru', dest="gru", action='store_true',
                         help='set to True if model should use gated units')
+    parser.add_argument('-T', metavar='task', dest="task",type=str,
+                        help='task to execute: [reverse,qa]')
+    
     parser.set_defaults(embedding_size=0)
+    parser.set_defaults(iters=5)
     parser.set_defaults(gru=False)
+    parser.set_defaults(task='reverse')
 
 
     args = parser.parse_args()
@@ -29,10 +36,19 @@ def main():
 
     global embed
     embed = False if  embedding_size==0 else True
+
+    global iters
+    iters = args.iters
+
+    global reverse
+    reverse = True if args.task=='reverse' else False
+    
     global C
     load_data()
     
     Y = run_model(args.gru)
+
+    evaluate(Y)
 
 def run_model(gru):
     voc_len = len(C.getVocabulary())
@@ -74,44 +90,31 @@ def run_model(gru):
     
     test = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
 
-    trainD = C.getVectors(translated=False, reverse=True, oneHot=True)
-    for i in range(1):
+    for i in range(iters):
         for x, y in zip(trainD['input'], trainD['output']):
-            l = len(x)
+            l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
 
             # INCOMPATIBLE WITH PYTHON 2.x
             #print('it: %d\t cost:%.5f'%(i,cost),end='\r')
 
-    print()    
     Y = []
 
-    # debug: seperate test set
-    '''
-    testC = Collection(['tasksv11/en/qa1_single-supporting-fact_test.txt'])
-    testC.translate()
-    testD = testC.getVectors(translated=False, reverse=True, oneHot=True)
-    #'''
-
-    # debug: training set = test set
-    #'''
-    testC = C
-    testD = trainD 
-    #'''
-
     for x, y in zip(testD['input'], testD['output']):
-        l = len(x)
+        l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
         pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
         Y.append(testC.getVocabulary()[pred_sen])
     
-    #print(Y)
-    
+    return Y
+
+
+def evaluate(pred_y):
     #'''
     # debug: print some information on and examples of output
 
     original_input = testC.getVectors(translated=False, reverse=True)
-
+    '''
     for i in range(5):
         #print trainD[i]
         print('\n')
@@ -125,13 +128,13 @@ def run_model(gru):
         print('----------------------------------')
         #print ''
         #print 'check: '+str(len(original_input['output'][i])==len(Y[i]))
-
+    '''
     check = 0
-    for a, b in zip(original_input['output'], Y):
+    for a, b in zip(original_input['output'], pred_y):
         if not np.array_equal(a,b):
             check+=1
     print('\n# errors: '+str(check))
-    #'''
+    
         
 def load_data():
     '''
@@ -140,7 +143,7 @@ def load_data():
            'qa3_three-supporting-facts',
            'qa4_two-arg-relations',
            'qa5_three-arg-relations']
-    #'''
+    '''
     fns = ['qa1_single-supporting-fact']
     
     files = []
@@ -154,6 +157,24 @@ def load_data():
     
     C.translate()
 
+    global trainD
+    trainD = C.getVectors(translated=False, reverse=True, oneHot=True)
+
+    
+    global testC
+    testC = Collection(['tasksv11/en/qa1_single-supporting-fact_test.txt'])
+    testC.translate()
+    global testD
+    testD = testC.getVectors(translated=False, reverse=True, oneHot=True)
+    '''
+
+    global testD
+    global testC
+    testC = C
+    testD = trainD
+    '''
+
+    
 if __name__ == "__main__":
     main()
     
