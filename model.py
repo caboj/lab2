@@ -8,7 +8,7 @@ class Model:
         self.nr_hidden = nr_hidden
         self.embedding_size = embedding_size
         self.voc_size = voc_size
-
+        
         
     def weights_init(self,shape):
         a = np.random.normal(0.0, 1.0, shape)
@@ -34,14 +34,27 @@ class Model:
 
         return (1-lmbd)*T.sum(cost_w)+lmbd*p
 
-# copied from illctheanotutorial - RnnLayer
-class Encoder(Model):
+
+
+class Embedding(Model):
     def __init__(self,m):
-        self.W = theano.shared(self.weights_init((m.nr_hidden,m.embedding_size)))
-        self.U = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
-        self.V = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
         self.E = theano.shared(self.weights_init((m.embedding_size,m.voc_size)))
 
+    def get_output_expr(self, x):
+        return T.dot(self.E,x.transpose()).transpose()
+
+    def get_parameters(self):
+        return [self.E]
+
+class Encoder(Model):
+    def __init__(self,m):
+        
+        in_size = m.voc_size if m.embedding_size==0 else m.embedding_size
+        
+        self.W = theano.shared(self.weights_init((m.nr_hidden,in_size)))
+        self.U = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
+        self.V = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
+        
     def get_output_expr(self, input_sequence):
         h0 = T.zeros((self.U.shape[0], ))
 
@@ -52,20 +65,22 @@ class Encoder(Model):
         return T.tanh(T.dot(self.V,h[-1]))
 
     def __get_rnn_step_expr(self, x_t, h_tm1):
-        return T.tanh(T.dot( self.U,h_tm1) + T.dot( self.W,T.dot(self.E,x_t)))
+        return T.tanh(T.dot( self.U,h_tm1) + T.dot( self.W,x_t))
 
     def get_parameters(self):
-        return [self.W, self.U, self.V,self.E]
+        return [self.W, self.U, self.V]
 
 class GRUEncoder(Model):
     def __init__(self,m):
-        self.E = theano.shared(self.weights_init((m.embedding_size,m.voc_size)))
-        self.W = theano.shared(self.weights_init((m.nr_hidden,m.embedding_size)))
+
+        in_size = m.voc_size if m.embedding_size==0 else m.embedding_size
+    
+        self.W = theano.shared(self.weights_init((m.nr_hidden,in_size)))
         self.V = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
         self.U = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
-        self.Wr = theano.shared(self.weights_init((m.nr_hidden,m.embedding_size)))
+        self.Wr = theano.shared(self.weights_init((m.nr_hidden,in_size)))
         self.Ur = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
-        self.Wz = theano.shared(self.weights_init((m.nr_hidden,m.embedding_size)))
+        self.Wz = theano.shared(self.weights_init((m.nr_hidden,in_size)))
         self.Uz = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
         self.r = theano.shared(self.gates_init(m.nr_hidden))
         self.z = theano.shared(self.gates_init(m.nr_hidden))
@@ -81,23 +96,23 @@ class GRUEncoder(Model):
         return T.tanh(T.dot(self.V,h[-1]))
 
     def __get_rnn_step_expr(self, x_t, h_tm1):
-        x_e = T.dot(self.E,x_t)
-        self.z = T.nnet.sigmoid(T.dot(self.Wz,x_e)+T.dot(self.Uz,h_tm1))
-        self.r = T.nnet.sigmoid(T.dot(self.Wr,x_e)+T.dot(self.Ur,h_tm1))
-        hj = T.tanh(T.dot(self.W,x_e)+T.dot(self.U,(self.r*h_tm1)))
+        self.z = T.nnet.sigmoid(T.dot(self.Wz,x_t)+T.dot(self.Uz,h_tm1))
+        self.r = T.nnet.sigmoid(T.dot(self.Wr,x_t)+T.dot(self.Ur,h_tm1))
+        hj = T.tanh(T.dot(self.W,x_t)+T.dot(self.U,(self.r*h_tm1)))
         return self.z*h_tm1+(1-self.z)*hj
 
     def get_parameters(self):
-        return [self.W, self.U,self.Wr, self.Ur,self.Wz, self.Uz, self.E]
+        return [self.W, self.U,self.Wr, self.Ur,self.Wz, self.Uz]
 
 class Decoder(Model):
     def __init__(self,m):
+        out_size = m.voc_size if m.embedding_size==0 else m.embedding_size
         self.Ch = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
-        self.Co = theano.shared(self.weights_init((m.embedding_size,m.nr_hidden)))
-        self.Oh = theano.shared(self.weights_init((m.embedding_size,m.nr_hidden)))
+        self.Co = theano.shared(self.weights_init((out_size,m.nr_hidden)))
+        self.Oh = theano.shared(self.weights_init((out_size,m.nr_hidden)))
         self.U = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
-        self.W = theano.shared(self.weights_init((m.nr_hidden,m.embedding_size)))
-        self.Oy = theano.shared(self.weights_init((m.embedding_size,m.embedding_size)))
+        self.W = theano.shared(self.weights_init((m.nr_hidden,out_size)))
+        self.Oy = theano.shared(self.weights_init((out_size,out_size)))
 
     def get_output_expr(self,c,l):
         h0 = T.tanh(T.dot(self.Ch,c))
@@ -122,19 +137,19 @@ class Decoder(Model):
 
 class GRUDecoder(Model):
     def __init__(self,m):
-
-        self.W = theano.shared(self.weights_init((m.nr_hidden,m.embedding_size)))
-        self.Wr = theano.shared(self.weights_init((m.nr_hidden,m.embedding_size)))
-        self.Wz = theano.shared(self.weights_init((m.nr_hidden,m.embedding_size)))
+        out_size = m.voc_size if m.embedding_size==0 else m.embedding_size
+        self.W = theano.shared(self.weights_init((m.nr_hidden,out_size)))
+        self.Wr = theano.shared(self.weights_init((m.nr_hidden,out_size)))
+        self.Wz = theano.shared(self.weights_init((m.nr_hidden,out_size)))
         self.U = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
         self.Uz = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
         self.Ur = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
         self.C = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
         self.Cz = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
         self.Cr = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
-        self.Oh = theano.shared(self.weights_init((m.embedding_size,m.nr_hidden)))
-        self.Oy = theano.shared(self.weights_init((m.embedding_size,m.embedding_size)))
-        self.Oc = theano.shared(self.weights_init((m.embedding_size,m.nr_hidden)))
+        self.Oh = theano.shared(self.weights_init((out_size,m.nr_hidden)))
+        self.Oy = theano.shared(self.weights_init((out_size,out_size)))
+        self.Oc = theano.shared(self.weights_init((out_size,m.nr_hidden)))
 
     def get_output_expr(self,c,l):
         h0 = T.tanh(T.dot(self.C,c))
@@ -159,13 +174,12 @@ class GRUDecoder(Model):
     def get_parameters(self):
         return [self.W,self.Wr,self.Wz,self.U,self.Ur,self.Uz,self.C,self.Cr,self.Cz,self.Oy,self.Oh,self.Oc]
 
-class ProbFromEmbed(Model):
+class DeEmbed(Model):
     def __init__(self,m):
         self.E = theano.shared(self.weights_init((m.embedding_size,m.voc_size)))
 
     def get_output_expr(self,y_e):
-        y = T.dot(y_e,self.E)
-        return T.nnet.softmax(y)
-
+        return T.dot(y_e,self.E)
+        
     def get_parameters(self):
         return [self.E]

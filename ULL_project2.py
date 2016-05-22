@@ -12,9 +12,10 @@ def main():
     parser.add_argument('-H', metavar='nr_hidden', dest="nr_hidden",type=int,
                         help='number of hidden nodes', required=True)
     parser.add_argument('-E', metavar='embedding_size', dest="embedding_size",type=int,
-                        help='word embedding layer size', required=True)
+                        help='word embedding layer size')
     parser.add_argument('--gru', dest="gru", action='store_true',
                         help='set to True if model should use gated units')
+    parser.set_defaults(embedding_size=0)
     parser.set_defaults(gru=False)
 
 
@@ -22,9 +23,12 @@ def main():
 
     global nr_hidden
     nr_hidden = args.nr_hidden
+
     global embedding_size
     embedding_size = args.embedding_size
-    
+
+    global embed
+    embed = False if  embedding_size==0 else True
     global C
     load_data()
     
@@ -41,17 +45,28 @@ def run_model(gru):
         encoder = Encoder(m)
         decoder = Decoder(m)
 
-    get_y = ProbFromEmbed(m)
+    if embed:
+        embedding = Embedding(m)
+        get_y = DeEmbed(m)
     
     x = T.imatrix()
     y = T.imatrix()
 
-    c=encoder.get_output_expr(x)
+    if embed:
+        x_e = embedding.get_output_expr(x)
+        c=encoder.get_output_expr(x_e)
+    else:
+        c=encoder.get_output_expr(x)
     
     l = T.scalar(dtype='int32')
-    y_e=decoder.get_output_expr(c,l)
-    y_pred = get_y.get_output_expr(y_e)
-    params = encoder.get_parameters() + decoder.get_parameters() + get_y.get_parameters()
+    if embed:
+        y_e=decoder.get_output_expr(c,l)
+        y_pred = T.nnet.softmax(get_y.get_output_expr(y_e))
+    else:
+        y_pred = T.nnet.softmax(decoder.get_output_expr(c,l))
+        
+    params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() + get_y.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
+    
     cost = m.get_cost(y_pred,y,params,.2)
     updates = m.get_sgd_updates(cost, params)
     
