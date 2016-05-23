@@ -19,12 +19,14 @@ def main():
                         help='set to True if model should use gated units')
     parser.add_argument('-T', metavar='task', dest="task",type=str,
                         help='task to execute: [reverse,qa]')
-    
+    parser.add_argument('-V', metavar='valid_size', dest="valid_size",type=float,
+                        help='percentage of training set used for validation')
+
     parser.set_defaults(embedding_size=0)
     parser.set_defaults(iters=5)
     parser.set_defaults(gru=False)
     parser.set_defaults(task='reverse')
-
+    parser.set_defaults(valid_size=0)
 
     args = parser.parse_args()
 
@@ -33,6 +35,9 @@ def main():
 
     global embedding_size
     embedding_size = args.embedding_size
+
+    global valid_size
+    valid_size = args.valid_size
 
     global embed
     embed = False if  embedding_size==0 else True
@@ -44,8 +49,8 @@ def main():
     reverse = True if args.task=='reverse' else False
     
     global C
+    global data
     load_data()
-    
     Y = run_model(args.gru)
 
     evaluate(Y)
@@ -99,7 +104,7 @@ def run_model(gru):
 
     for i in range(iters):
         lr = lr/2 if i>9 else lr
-        for x, y in zip(trainD['input'], trainD['output']):
+        for x, y in zip(data['train']['input'], data['train']['output']):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
 
@@ -109,12 +114,12 @@ def run_model(gru):
     Y = []
 
     print('\ntesting ... ')
-    for x, y in zip(testD['input'], testD['output']):
+    for x, y in zip(data['train']['input'], data['test']['output']):
         l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
         #Y.append([np.argmax(y_pred[i]) for i in range(len(y_pred))])
         pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
-        Y.append(testC.getVocabulary()[pred_sen])
+        Y.append(C.getVocabulary()[pred_sen])
     
     return Y
 
@@ -122,16 +127,16 @@ def run_model(gru):
 def evaluate(pred_y):
     
     print('evaluating ...')
-    original_input = testC.getVectors(translated=False, reverse=reverse)
+    original_input = C.getVectors(translated=False, reverse=reverse)
     check = 0
     tot = 0
-    for a, b in zip(original_input['output'], pred_y):
+    for a, b in zip(original_input['test']['output'], pred_y):
         for wa, wb in zip(a,b):
             tot +=1
             if not np.array_equal(wa,wb):
                 check+=1
     percentage = (tot-check)*100.0/tot
-    print('\nprecision: %.2f'%(percentage), '%')
+    print('\nprecision: %.2f'%(percentage)+'%')
     
         
 def load_data():
@@ -142,41 +147,22 @@ def load_data():
            'qa3_three-supporting-facts',
            'qa4_two-arg-relations',
            'qa5_three-arg-relations']
-    '''
+    #'''
     fns = ['qa1_single-supporting-fact']
     
     files = []
     for fn in fns:
         files.append('tasksv11/en/'+fn+'_train.txt')
+        files.append('tasksv11/en/'+fn+'_test.txt')
         
     global C
-    C = Collection(files)
+    C = Collection(files, valid_size)
     #C.printInfo()
     
     C.translate()
 
-    global trainD
-    trainD = C.getVectors(translated=False, reverse=reverse, oneHot=True)
-
-    '''
-    fns = ['qa1_single-supporting-fact',
-           'qa2_two-supporting-facts',
-           'qa3_three-supporting-facts',
-           'qa4_two-arg-relations',
-           'qa5_three-arg-relations']
-    '''
-    fns = ['qa1_single-supporting-fact']
-    
-    files = []
-    for fn in fns:
-        files.append('tasksv11/en/'+fn+'_test.txt')
-
-    global testC
-    testC = Collection(files)
-    testC.translate()
-    global testD
-    testD = testC.getVectors(translated=False, reverse=reverse, oneHot=True)
-
+    global data
+    data = C.getVectors(reverse=reverse, oneHot=True)
     
 if __name__ == "__main__":
     main()
