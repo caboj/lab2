@@ -121,8 +121,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
 
-                                              # INCOMPATIBLE WITH PYTHON 2.x
-        print(' it: %d\t cost:\t%.5f'%(i+1,cost))#,end='\r')
+        print(' it: %d\t cost:\t%.5f'%(i+1,cost))
 
     Y = []
 
