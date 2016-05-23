@@ -32,7 +32,7 @@ def main():
     parser.set_defaults(embedding_size=12)
     parser.set_defaults(learning_rate=0.001)
     parser.set_defaults(iters=20)
-    parser.set_defaults(ha=8)
+    parser.set_defaults(ha=3)
     parser.set_defaults(gru=False)
     parser.set_defaults(task='reverse')
     parser.set_defaults(valid_size=0)
@@ -155,14 +155,14 @@ def evaluate(pred_y, test_set):
         
 def load_data():
     print('loading data ...')
-    '''
+    #'''
     fns = ['qa1_single-supporting-fact',
            'qa2_two-supporting-facts',
            'qa3_three-supporting-facts',
            'qa4_two-arg-relations',
            'qa5_three-arg-relations']
     #'''
-    fns = ['qa1_single-supporting-fact']
+    #fns = ['qa1_single-supporting-fact']
     
     files = []
     for fn in fns:
@@ -184,7 +184,9 @@ def print_info(gru,lr,ha,cf,lmbd,tset,vsize):
         testsets = 'test set'
     else:
         testsets= 'validation set ('+str(vsize)+'%)'
-    print( 'Network params:\n'\
+
+    taskstr = 'reverse' if reverse else 'question answering'
+    print( 'Network params on task %s:\n'\
            ' nr of iters:\t\t%d\n'\
            ' hidden nodes:\t\t%d\n'\
            ' embedding layer size:\t%d\n'\
@@ -194,7 +196,7 @@ def print_info(gru,lr,ha,cf,lmbd,tset,vsize):
            ' cost function:\t\t%s\n'\
            ' regularization lambda:\t%f\n'\
            ' results on %s\n'
-          %(iters,nr_hidden,embedding_size,gru,lr,ha,cfs,lmbd,testsets))
+          %(taskstr,iters,nr_hidden,embedding_size,gru,lr,ha,cfs,lmbd,testsets))
     
           
 if __name__ == "__main__":

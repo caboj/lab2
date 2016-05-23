@@ -178,6 +178,36 @@ class GRUDecoder(Model):
     def get_parameters(self):
         return [self.W,self.Wr,self.Wz,self.U,self.Ur,self.Uz,self.C,self.Cr,self.Cz,self.Oy,self.Oh,self.Oc]
 
+class Decoder_QA(Model):
+    def __init__(self,m):
+        out_size = m.voc_size if m.embedding_size==0 else m.embedding_size
+        self.Ch = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
+        self.Co = theano.shared(self.weights_init((out_size,m.nr_hidden)))
+        self.Oh = theano.shared(self.weights_init((out_size,m.nr_hidden)))
+        self.U = theano.shared(self.weights_init((m.nr_hidden,m.nr_hidden)))
+        self.W = theano.shared(self.weights_init((m.nr_hidden,out_size)))
+        self.Oy = theano.shared(self.weights_init((out_size,out_size)))
+
+    def get_output_expr(self,c):
+        h0 = T.tanh(T.dot(self.Ch,c))
+        y0 = T.zeros((self.Oy.shape[0],))
+
+        ([h_vals, y_vals], updates) = theano.scan(fn=self.oneStep,
+                                                  outputs_info=[h0, y0],
+                                                  non_sequences=[c])
+        return y_vals
+
+    def oneStep(self, h_tm1, y_tm1, c):
+
+        h_t = T.tanh(theano.dot(self.U,h_tm1)+theano.dot(self.Ch,c) + T.dot(self.W,y_tm1))
+        y_e = theano.dot(self.Oh,h_t)+theano.dot(self.Oy,y_tm1)+theano.dot(self.Co,c)
+
+        return [h_t, y_e]
+
+    def get_parameters(self):
+        return [self.Oh, self.Oy,self.U,self.Co,self.Ch]
+
+
 class DeEmbed(Model):
     def __init__(self,m,emb_mat):
         self.E = emb_mat[0]#theano.shared(self.weights_init((m.embedding_size,m.voc_size)))
