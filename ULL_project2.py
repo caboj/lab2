@@ -78,7 +78,7 @@ def run_model(gru):
     
     l = T.scalar(dtype='int32')
 
-    lr = 0.1
+    lr = 0.001
 
     if embed:
         y_e=decoder.get_output_expr(c,l)
@@ -88,7 +88,7 @@ def run_model(gru):
         
     params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() + get_y.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
     
-    cost = m.get_cost(y_pred,y,params,.001)
+    cost = m.get_cost(y_pred,y,params,.0000000001)
     updates = m.get_sgd_updates(cost, params, lr)
     
     trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost],updates=updates)
@@ -98,7 +98,7 @@ def run_model(gru):
     print('training ... ')
 
     for i in range(iters):
-        lr = lr/2 if i>3 else lr
+        lr = lr/2 if i>9 else lr
         for x, y in zip(trainD['input'], trainD['output']):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
@@ -136,14 +136,14 @@ def evaluate(pred_y):
         
 def load_data():
     print('loading data ...')
-    #'''
+    '''
     fns = ['qa1_single-supporting-fact',
            'qa2_two-supporting-facts',
            'qa3_three-supporting-facts',
            'qa4_two-arg-relations',
            'qa5_three-arg-relations']
-    #'''
-    #fns = ['qa1_single-supporting-fact']
+    '''
+    fns = ['qa1_single-supporting-fact']
     
     files = []
     for fn in fns:
@@ -158,14 +158,14 @@ def load_data():
     global trainD
     trainD = C.getVectors(translated=False, reverse=reverse, oneHot=True)
 
-    #'''
+    '''
     fns = ['qa1_single-supporting-fact',
            'qa2_two-supporting-facts',
            'qa3_three-supporting-facts',
            'qa4_two-arg-relations',
            'qa5_three-arg-relations']
-    #'''
-    #fns = ['qa1_single-supporting-fact']
+    '''
+    fns = ['qa1_single-supporting-fact']
     
     files = []
     for fn in fns:
