@@ -24,6 +24,10 @@ def main():
                         help='task to execute: [reverse,qa]')
     parser.add_argument('-V', metavar='valid_size', dest="valid_size",type=float,
                         help='percentage of training set used for validation')
+    parser.add_argument('-C', metavar='cost_function', dest="cf",type=str,
+                        help='cost funtion to use: \'ll\' - LogLikelihood (default) or \'ce\' - Cross Entropy')
+    parser.add_argument('-l', metavar='lambda', dest="lmbd",type=float,
+                        help='cost funtion regularization lambda')
 
     parser.set_defaults(embedding_size=12)
     parser.set_defaults(learning_rate=0.001)
@@ -32,9 +36,11 @@ def main():
     parser.set_defaults(gru=False)
     parser.set_defaults(task='reverse')
     parser.set_defaults(valid_size=0)
-
+    parser.set_defaults(cf='ll')
+    parser.set_defaults(lmbd=0.0001)
+    
     args = parser.parse_args()
-
+    
     global nr_hidden
     nr_hidden = args.nr_hidden
 
@@ -52,15 +58,17 @@ def main():
 
     global reverse
     reverse = True if args.task=='reverse' else False
-    
+
+    print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd)
+
     global C
     global data
     load_data()
 
-    Y = run_model(args.gru, args.learning_rate,args.ha)
+    Y = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd)
     evaluate(Y)
 
-def run_model(gru,lr,ha):
+def run_model(gru,lr,ha,cf,lmbd):
 
     print('compiling theano computational graph ... ')
     voc_len = len(C.getVocabulary())
@@ -96,7 +104,7 @@ def run_model(gru,lr,ha):
         
     params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
     
-    cost = m.get_cost(y_pred,y,params,.0000000001)
+    cost = m.get_cost(y_pred,y,params,lmbd,cf)
     updates = m.get_sgd_updates(cost, params, lr)
     
     trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost],updates=updates)
@@ -123,6 +131,7 @@ def run_model(gru,lr,ha):
         #Y.append([np.argmax(y_pred[i]) for i in range(len(y_pred))])
         pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
         Y.append(C.getVocabulary()[pred_sen])
+
     
     return Y
 
@@ -139,6 +148,7 @@ def evaluate(pred_y):
             if not np.array_equal(wa,wb):
                 check+=1
     percentage = (tot-check)*100.0/tot
+    
     print('\nprecision: %.2f'%(percentage)+'%')
     
         
@@ -166,7 +176,21 @@ def load_data():
 
     global data
     data = C.getVectors(reverse=reverse, oneHot=True)
+
+def print_info(gru,lr,ha,cf,lmbd):
+    cfs ='Cross Entropy' if cf=='ce' else  'Log Likelihod' 
+    print( 'Network params:\n'\
+          ' nr of iters:\t\t%d\n'\
+          ' hidden nodes:\t\t%d\n'\
+          ' embedding layer size:\t%d\n'\
+          ' gated units used:\t%s\n'\
+          ' learning rate:\t\t%f\n'\
+          ' lr half after:\t\t%d iters\n'\
+          ' cost function:\t\t%s\n'\
+          ' regularization lambda:\t%f\n'\
+          %(iters,nr_hidden,embedding_size,gru,lr,ha,cfs,lmbd))
     
+          
 if __name__ == "__main__":
     main()
     

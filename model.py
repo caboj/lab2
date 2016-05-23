@@ -27,9 +27,13 @@ class Model:
             updates.append([p, p - lr * g])
         return updates
 
-    def get_cost(self,y_pred,y,params,lmbd):
+    def get_cost(self,y_pred,y,params,lmbd,f='ll'):
         p = sum([T.square(par).sum() for par in params])
-        cost_w, _ = theano.scan(fn=lambda y_pred_w,y_w : T.nnet.categorical_crossentropy(y_pred_w,y_w),
+        if f=='ce':
+            cost_function = lambda y_pred_w,y_w : T.nnet.categorical_crossentropy(y_pred_w,y_w)
+        else:
+            cost_function = lambda y_pred_w,y_w : -T.log(T.dot(y_pred,y_w))
+        cost_w, _ = theano.scan(fn=cost_function,
                                 sequences=[y_pred,y])
 
         return (1-lmbd)*T.sum(cost_w)+lmbd*p
