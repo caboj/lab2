@@ -175,8 +175,8 @@ class GRUDecoder(Model):
         return [self.W,self.Wr,self.Wz,self.U,self.Ur,self.Uz,self.C,self.Cr,self.Cz,self.Oy,self.Oh,self.Oc]
 
 class DeEmbed(Model):
-    def __init__(self,m):
-        self.E = theano.shared(self.weights_init((m.embedding_size,m.voc_size)))
+    def __init__(self,m,emb_mat):
+        self.E = emb_mat[0]#theano.shared(self.weights_init((m.embedding_size,m.voc_size)))
 
     def get_output_expr(self,y_e):
         return T.dot(y_e,self.E)

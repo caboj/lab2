@@ -3,7 +3,6 @@ import re
 import numpy as np
 import theano
 import theano.tensor as T
-#import model as m
 from model import *
 from corpus import *
 
@@ -15,15 +14,21 @@ def main():
                         help='word embedding layer size')
     parser.add_argument('-I', metavar='iters', dest="iters",type=int,
                         help='number of training iterations')
+    parser.add_argument('-L', metavar='learning_rate', dest="learning_rate",type=float,
+                        help='initial learning rate')
+    parser.add_argument('--half_after', metavar="iters", dest="ha",type=int,
+                        help='learning halfs after this number of iters')
     parser.add_argument('--gru', dest="gru", action='store_true',
-                        help='set to True if model should use gated units')
+                        help='use this option to use gated units')
     parser.add_argument('-T', metavar='task', dest="task",type=str,
                         help='task to execute: [reverse,qa]')
     parser.add_argument('-V', metavar='valid_size', dest="valid_size",type=float,
                         help='percentage of training set used for validation')
 
-    parser.set_defaults(embedding_size=0)
-    parser.set_defaults(iters=5)
+    parser.set_defaults(embedding_size=12)
+    parser.set_defaults(learning_rate=0.001)
+    parser.set_defaults(iters=20)
+    parser.set_defaults(ha=8)
     parser.set_defaults(gru=False)
     parser.set_defaults(task='reverse')
     parser.set_defaults(valid_size=0)
@@ -51,11 +56,11 @@ def main():
     global C
     global data
     load_data()
-    Y = run_model(args.gru)
 
+    Y = run_model(args.gru, args.learning_rate,args.ha)
     evaluate(Y)
 
-def run_model(gru):
+def run_model(gru,lr,ha):
 
     print('compiling theano computational graph ... ')
     voc_len = len(C.getVocabulary())
@@ -70,7 +75,7 @@ def run_model(gru):
 
     if embed:
         embedding = Embedding(m)
-        get_y = DeEmbed(m)
+        get_y = DeEmbed(m,embedding.get_parameters())
     
     x = T.imatrix()
     y = T.imatrix()
@@ -83,15 +88,13 @@ def run_model(gru):
     
     l = T.scalar(dtype='int32')
 
-    lr = 0.001
-
     if embed:
         y_e=decoder.get_output_expr(c,l)
         y_pred = T.nnet.softmax(get_y.get_output_expr(y_e))
     else:
         y_pred = T.nnet.softmax(decoder.get_output_expr(c,l))
         
-    params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() + get_y.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
+    params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
     
     cost = m.get_cost(y_pred,y,params,.0000000001)
     updates = m.get_sgd_updates(cost, params, lr)
@@ -103,13 +106,13 @@ def run_model(gru):
     print('training ... ')
 
     for i in range(iters):
-        lr = lr/2 if i>9 else lr
+        lr = lr/2 if i>=ha-1 else lr
         for x, y in zip(data['train']['input'], data['train']['output']):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
 
                                               # INCOMPATIBLE WITH PYTHON 2.x
-        print(' it: %d\t cost:\t%.5f'%(i,cost))#,end='\r')
+        print(' it: %d\t cost:\t%.5f'%(i+1,cost))#,end='\r')
 
     Y = []
 
