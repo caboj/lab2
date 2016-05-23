@@ -192,7 +192,10 @@ class Story(object):
             elif '?' in s:
                 qid = np.where(s=='?')[0][0]
                 self.utterances.append(Utterance(s[1:(qid+1)], 'question'))
-                self.utterances.append(Utterance(s[(qid+1):(qid+2)], 'answer'))
+                if ',' in s:
+                    self.utterances.append(Utterance([''.join(s[(qid+1):(qid+4)])], 'answer'))
+                else:
+                    self.utterances.append(Utterance(s[(qid+1):(qid+2)], 'answer'))
    
     def getWords(self):
         words = []
