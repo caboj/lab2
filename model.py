@@ -39,7 +39,7 @@ class Model:
         cost_w, _ = theano.scan(fn=cost_function,
                                 sequences=[y_pred,y])
 
-        return (1-lmbd)*T.sum(cost_w)+lmbd*p
+        return (1-lmbd)*T.sum(cost_w)+lmbd*p/y_pred.shape[0]
 
 
 
