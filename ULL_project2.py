@@ -68,7 +68,7 @@ def main():
     load_data()
 
     Y = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd,test_set)
-    evaluate(Y)
+    evaluate(Y, test_set)
 
 def run_model(gru,lr,ha,cf,lmbd,test_set):
 
@@ -126,7 +126,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set):
     Y = []
 
     print('\ntesting ... ')
-    for x, y in zip(data['train']['input'], data[test_set]['output']):
+    for x, y in zip(data[test_set]['input'], data[test_set]['output']):
         l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
         #Y.append([np.argmax(y_pred[i]) for i in range(len(y_pred))])
@@ -137,13 +137,13 @@ def run_model(gru,lr,ha,cf,lmbd,test_set):
     return Y
 
 
-def evaluate(pred_y):
+def evaluate(pred_y, test_set):
     
     print('evaluating ...')
     original_input = C.getVectors(translated=False, reverse=reverse)
     check = 0
     tot = 0
-    for a, b in zip(original_input['test']['output'], pred_y):
+    for a, b in zip(original_input[test_set]['output'], pred_y):
         for wa, wb in zip(a,b):
             tot +=1
             if not np.array_equal(wa,wb):
