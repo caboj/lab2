@@ -22,7 +22,7 @@ def main():
                         help='use this option to use gated units')
     parser.add_argument('-T', metavar='task', dest="task",type=str,
                         help='task to execute: [reverse,qa]')
-    parser.add_argument('-V', metavar='valid_size', dest="valid_size",type=float,
+    parser.add_argument('-V', metavar='valid_size', dest="valid_size",type=int,
                         help='percentage of training set used for validation')
     parser.add_argument('-C', metavar='cost_function', dest="cf",type=str,
                         help='cost funtion to use: \'ll\' - LogLikelihood (default) or \'ce\' - Cross Entropy')
@@ -59,16 +59,18 @@ def main():
     global reverse
     reverse = True if args.task=='reverse' else False
 
-    print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd)
+    test_set = 'test' if args.valid_size==0 else 'valid'
+    
+    print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd,test_set,valid_size)
 
     global C
     global data
     load_data()
 
-    Y = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd)
-    evaluate(Y)
+    Y = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd,test_set)
+    evaluate(Y, test_set)
 
-def run_model(gru,lr,ha,cf,lmbd):
+def run_model(gru,lr,ha,cf,lmbd,test_set):
 
     print('compiling theano computational graph ... ')
     voc_len = len(C.getVocabulary())
@@ -125,7 +127,7 @@ def run_model(gru,lr,ha,cf,lmbd):
     Y = []
 
     print('\ntesting ... ')
-    for x, y in zip(data['test']['input'], data['test']['output']):
+    for x, y in zip(data[test_set]['input'], data[test_set]['output']):
         l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
         #Y.append([np.argmax(y_pred[i]) for i in range(len(y_pred))])
@@ -136,13 +138,13 @@ def run_model(gru,lr,ha,cf,lmbd):
     return Y
 
 
-def evaluate(pred_y):
+def evaluate(pred_y, test_set):
     
     print('evaluating ...')
     original_input = C.getVectors(translated=False, reverse=reverse)
     check = 0
     tot = 0
-    for a, b in zip(original_input['test']['output'], pred_y):
+    for a, b in zip(original_input[test_set]['output'], pred_y):
         for wa, wb in zip(a,b):
             tot +=1
             if not np.array_equal(wa,wb):
@@ -177,18 +179,23 @@ def load_data():
     global data
     data = C.getVectors(reverse=reverse, oneHot=True)
 
-def print_info(gru,lr,ha,cf,lmbd):
+def print_info(gru,lr,ha,cf,lmbd,tset,vsize):
     cfs ='Cross Entropy' if cf=='ce' else  'Log Likelihod' 
+    if vsize==0:
+        testsets = 'test set'
+    else:
+        testsets= 'validation set ('+str(vsize)+'%)'
     print( 'Network params:\n'\
-          ' nr of iters:\t\t%d\n'\
-          ' hidden nodes:\t\t%d\n'\
-          ' embedding layer size:\t%d\n'\
-          ' gated units used:\t%s\n'\
-          ' learning rate:\t\t%f\n'\
-          ' lr half after:\t\t%d iters\n'\
-          ' cost function:\t\t%s\n'\
-          ' regularization lambda:\t%f\n'\
-          %(iters,nr_hidden,embedding_size,gru,lr,ha,cfs,lmbd))
+           ' nr of iters:\t\t%d\n'\
+           ' hidden nodes:\t\t%d\n'\
+           ' embedding layer size:\t%d\n'\
+           ' gated units used:\t%s\n'\
+           ' learning rate:\t\t%f\n'\
+           ' lr half after:\t\t%d iters\n'\
+           ' cost function:\t\t%s\n'\
+           ' regularization lambda:\t%f\n'\
+           ' results on %s\n'
+          %(iters,nr_hidden,embedding_size,gru,lr,ha,cfs,lmbd,testsets))
     
           
 if __name__ == "__main__":

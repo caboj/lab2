@@ -61,7 +61,7 @@ class Collection(object):
         idx = list(range(total_len))
         np.random.shuffle(idx)
         self.valid_idx[reverse]
-        valid = idx[: int(np.ceil(self.valid_size*total_len)) ]
+        valid = idx[: int(np.ceil((self.valid_size/100.0)*total_len)) ]
         self.valid_idx[reverse] = np.sort(valid)
 
     def addValidationSet(self, reverse, total_len, vecs):
@@ -72,7 +72,7 @@ class Collection(object):
             vecs_new['valid'][io] = np.array(vecs['train'][io])[valid]
             vecs_new['train'][io] = np.array(vecs['train'][io])[train]
         return vecs_new
-        
+
     def printInfo(self):
         print('\nCollection built with file(s):')
         for i, t in enumerate(self.tasks):
