@@ -125,7 +125,7 @@ def run_model(gru,lr,ha,cf,lmbd):
     Y = []
 
     print('\ntesting ... ')
-    for x, y in zip(data['train']['input'], data['test']['output']):
+    for x, y in zip(data['test']['input'], data['test']['output']):
         l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
         #Y.append([np.argmax(y_pred[i]) for i in range(len(y_pred))])

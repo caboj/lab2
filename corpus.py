@@ -58,7 +58,7 @@ class Collection(object):
         return self.vectors[key]
 
     def detValidationSet(self, reverse, total_len):
-        idx = range(total_len)
+        idx = list(range(total_len))
         np.random.shuffle(idx)
         self.valid_idx[reverse]
         valid = idx[: int(np.ceil(self.valid_size*total_len)) ]
