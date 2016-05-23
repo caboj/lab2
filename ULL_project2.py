@@ -30,17 +30,20 @@ def main():
                         help='cost funtion regularization lambda')
     parser.add_argument('--random_weights', dest="wir", action='store_true',
                         help='use this option to use random initialization of weights (default is ones)')
+    parser.add_argument('--qa_file', dest="qa_file", type=int,
+                        help='for question answer task: specify task file to use (0 is all)')
 
     parser.set_defaults(embedding_size=12)
-    parser.set_defaults(learning_rate=0.01)
+    parser.set_defaults(learning_rate=0.5)
     parser.set_defaults(iters=20)
-    parser.set_defaults(ha=5)
+    parser.set_defaults(ha=10)
     parser.set_defaults(gru=False)
     parser.set_defaults(task='reverse')
     parser.set_defaults(valid_size=0)
     parser.set_defaults(cf='ll')
     parser.set_defaults(lmbd=0.1)
     parser.set_defaults(wir=False)
+    parser.set_defaults(qa_file=0)
     
     args = parser.parse_args()
     
@@ -62,9 +65,12 @@ def main():
     global reverse
     reverse = True if args.task=='reverse' else False
 
+    global qa_file
+    qa_file= args.qa_file
+
     test_set = 'test' if args.valid_size==0 else 'valid'
     
-    print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd,test_set,valid_size,args.wir)
+    print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd,test_set,valid_size,args.wir,qa_file)
 
     global C
     global data
@@ -163,10 +169,31 @@ def load_data():
            'qa2_two-supporting-facts',
            'qa3_three-supporting-facts',
            'qa4_two-arg-relations',
-           'qa5_three-arg-relations']
+           'qa5_three-arg-relations',
+           'qa6_yes-no-questions',
+           'qa7_counting',
+           'qa8_lists-sets',
+           'qa9_simple-negation',
+           'qa11_basic-coreference',
+           'qa12_conjunction',
+           'qa13_compound-coreference',
+           'qa14_time-reasoning',
+           'qa15_basic-deduction',
+           'qa16_basic-induction',
+           'qa17_positional-reasoning',
+           'qa18_size-reasoning',
+           'qa19_path-finding',
+           'qa20_agents-motivations']
+
     #'''
     #fns = ['qa1_single-supporting-fact']
-    
+    if reverse:
+        task_file_range = range(5)
+    elif qa_file==0:
+        task_file_range = range(20)
+    else:
+        task_file_range = range(qa_file)
+        
     files = []
     for fn in fns:
         files.append('tasksv11/en/'+fn+'_train.txt')
@@ -181,7 +208,7 @@ def load_data():
     global data
     data = C.getVectors(reverse=reverse, oneHot=True)
 
-def print_info(gru,lr,ha,cf,lmbd,tset,vsize,wir):
+def print_info(gru,lr,ha,cf,lmbd,tset,vsize,wir,qa_file):
     cfs ='Cross Entropy' if cf=='ce' else  'Log Likelihod' 
     if vsize==0:
         testsets = 'test set'
@@ -189,7 +216,7 @@ def print_info(gru,lr,ha,cf,lmbd,tset,vsize,wir):
         testsets= 'validation set ('+str(vsize)+'%)'
 
     wistr = 'random' if wir else 'ones'
-    taskstr = 'reverse' if reverse else 'question answering'
+    taskstr = 'reverse' if reverse else 'question answering - %d'%qa_file
     print( 'Network params on task %s:\n'\
            ' nr of iters:\t\t%d\n'\
            ' hidden nodes:\t\t%d\n'\
