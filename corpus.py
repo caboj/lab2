@@ -13,11 +13,11 @@ class Collection(object):
         self.tasks.append(Task(fileName))
 
     def translate(self):
-        print('\nTranslating collection...'),
+        #print('\nTranslating collection...'),
         vocab = self.getVocabulary()
         for t in self.tasks:
             t.translate(vocab)
-        print('finished')
+        #print('finished')
 
 
     def getVocabulary(self):
@@ -32,7 +32,7 @@ class Collection(object):
     def getVectors(self, reverse=True, translated=False, oneHot=False):
         key = str((reverse,translated,oneHot))
         if key not in self.vectors:
-            print('\nConstructing input and output vectors...'),
+            #print('\nConstructing input and output vectors...'),
             vecs = {'input':[],'output':[]}
             for t in self.tasks:
                 if reverse:
@@ -44,7 +44,7 @@ class Collection(object):
                 vecs['input'] += tvec['input']
                 vecs['output'] += tvec['output']
             self.vectors[key] = vecs
-            print('finished')
+            #print('finished')
         return self.vectors[key]
 
     def printInfo(self):
