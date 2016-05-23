@@ -28,16 +28,19 @@ def main():
                         help='cost funtion to use: \'ll\' - LogLikelihood (default) or \'ce\' - Cross Entropy')
     parser.add_argument('-l', metavar='lambda', dest="lmbd",type=float,
                         help='cost funtion regularization lambda')
+    parser.add_argument('--random_weights', dest="wir", action='store_true',
+                        help='use this option to use random initialization of weights (default is ones)')
 
     parser.set_defaults(embedding_size=12)
-    parser.set_defaults(learning_rate=0.001)
+    parser.set_defaults(learning_rate=0.01)
     parser.set_defaults(iters=20)
-    parser.set_defaults(ha=3)
+    parser.set_defaults(ha=5)
     parser.set_defaults(gru=False)
     parser.set_defaults(task='reverse')
     parser.set_defaults(valid_size=0)
     parser.set_defaults(cf='ll')
-    parser.set_defaults(lmbd=0.0001)
+    parser.set_defaults(lmbd=0.1)
+    parser.set_defaults(wir=False)
     
     args = parser.parse_args()
     
@@ -61,21 +64,21 @@ def main():
 
     test_set = 'test' if args.valid_size==0 else 'valid'
     
-    print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd,test_set,valid_size)
+    print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd,test_set,valid_size,args.wir)
 
     global C
     global data
     load_data()
 
-    Y = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd,test_set)
+    Y = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd,test_set,args.wir)
     evaluate(Y, test_set)
 
-def run_model(gru,lr,ha,cf,lmbd,test_set):
+def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
 
     print('compiling theano computational graph ... ')
     voc_len = len(C.getVocabulary())
     
-    m = Model(nr_hidden,embedding_size,voc_len)
+    m = Model(nr_hidden,embedding_size,voc_len,wir)
     if gru:
         encoder = GRUEncoder(m)
         decoder = GRUDecoder(m)
@@ -114,7 +117,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set):
     test = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
 
     print('training ... ')
-    print('blabla.. gittest')
+    
     for i in range(iters):
         lr = lr/2 if i>=ha-1 else lr
         for x, y in zip(data['train']['input'], data['train']['output']):
@@ -178,25 +181,27 @@ def load_data():
     global data
     data = C.getVectors(reverse=reverse, oneHot=True)
 
-def print_info(gru,lr,ha,cf,lmbd,tset,vsize):
+def print_info(gru,lr,ha,cf,lmbd,tset,vsize,wir):
     cfs ='Cross Entropy' if cf=='ce' else  'Log Likelihod' 
     if vsize==0:
         testsets = 'test set'
     else:
         testsets= 'validation set ('+str(vsize)+'%)'
 
+    wistr = 'random' if wir else 'ones'
     taskstr = 'reverse' if reverse else 'question answering'
     print( 'Network params on task %s:\n'\
            ' nr of iters:\t\t%d\n'\
            ' hidden nodes:\t\t%d\n'\
            ' embedding layer size:\t%d\n'\
            ' gated units used:\t%s\n'\
+           ' initialization of weights:\t%s\n'\
            ' learning rate:\t\t%f\n'\
            ' lr half after:\t\t%d iters\n'\
            ' cost function:\t\t%s\n'\
            ' regularization lambda:\t%f\n'\
            ' results on %s\n'
-          %(taskstr,iters,nr_hidden,embedding_size,gru,lr,ha,cfs,lmbd,testsets))
+          %(taskstr,iters,nr_hidden,embedding_size,gru,wistr,lr,ha,cfs,lmbd,testsets))
     
           
 if __name__ == "__main__":
