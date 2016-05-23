@@ -2,12 +2,14 @@ import numpy as np
 import nltk
 
 class Collection(object):
-    def __init__(self, files):
+    def __init__(self, files, valid_size):
         self.tasks = []
         self.vocab = []
         self.vectors = {}
         for fileName in files:
             self.read_task(fileName)
+        self.valid_size = valid_size
+        self.valid_idx = {True:[], False:[]}
 
     def read_task(self, fileName):
         self.tasks.append(Task(fileName))
@@ -18,7 +20,6 @@ class Collection(object):
         for t in self.tasks:
             t.translate(vocab)
         #print('finished')
-
 
     def getVocabulary(self):
         if not len(self.vocab):
@@ -34,6 +35,7 @@ class Collection(object):
         if key not in self.vectors:
             #print('\nConstructing input and output vectors...'),
             vecs = {'input':[],'output':[]}
+            vecs = {'train':vecs, 'test':vecs}
             for t in self.tasks:
                 if reverse:
                     tvec = t.getReverseVectors(translated, oneHot)
@@ -41,12 +43,36 @@ class Collection(object):
                     tvec = t.getQuestionVectors(translated, oneHot)
                 #vecs['input'] = np.concatenate((vecs['input'], tvec['input']))
                 #vecs['output'] = np.concatenate((vecs['output'], tvec['output']))
-                vecs['input'] += tvec['input']
-                vecs['output'] += tvec['output']
+                setType = 'train' if ('train' in t.fileName) else 'test'
+                vecs[setType]['input'] += tvec['input']
+                vecs[setType]['output'] += tvec['output']
+            
+            if self.valid_size:
+                total_len = len(vecs['train']['input'])
+                if not len(self.valid_idx[reverse]):
+                    self.detValidationSet(reverse, total_len)
+                vecs = self.addValidationSet(reverse, total_len, vecs)
+            
             self.vectors[key] = vecs
             #print('finished')
         return self.vectors[key]
 
+    def detValidationSet(self, reverse, total_len):
+        idx = range(total_len)
+        np.random.shuffle(idx)
+        self.valid_idx[reverse]
+        valid = idx[: int(np.ceil(self.valid_size*total_len)) ]
+        self.valid_idx[reverse] = np.sort(valid)
+
+    def addValidationSet(self, reverse, total_len, vecs):
+        valid = self.valid_idx[reverse]
+        train = np.delete(range(total_len), valid)
+        vecs_new = {'train':{}, 'valid':{}, 'test':vecs['test']}
+        for io in ['input', 'output']:
+            vecs_new['valid'][io] = np.array(vecs['train'][io])[valid]
+            vecs_new['train'][io] = np.array(vecs['train'][io])[train]
+        return vecs_new
+        
     def printInfo(self):
         print('\nCollection built with file(s):')
         for i, t in enumerate(self.tasks):
