@@ -114,7 +114,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set):
     test = theano.function(inputs=[x,y,l],outputs=[y_pred,cost])
 
     print('training ... ')
-
+    print('blabla.. gittest')
     for i in range(iters):
         lr = lr/2 if i>=ha-1 else lr
         for x, y in zip(data['train']['input'], data['train']['output']):
