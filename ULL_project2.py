@@ -164,7 +164,7 @@ def evaluate(pred_y, test_set):
         
 def load_data():
     print('loading data ...')
-    #'''
+    
     fns = ['qa1_single-supporting-fact',
            'qa2_two-supporting-facts',
            'qa3_three-supporting-facts',
@@ -174,6 +174,7 @@ def load_data():
            'qa7_counting',
            'qa8_lists-sets',
            'qa9_simple-negation',
+           'qa10_indefinite-knowledge',
            'qa11_basic-coreference',
            'qa12_conjunction',
            'qa13_compound-coreference',
@@ -184,24 +185,23 @@ def load_data():
            'qa18_size-reasoning',
            'qa19_path-finding',
            'qa20_agents-motivations']
-
-    #'''
-    #fns = ['qa1_single-supporting-fact']
-    if reverse:
-        task_file_range = range(5)
-    elif qa_file==0:
-        task_file_range = range(20)
+    
+    if qa_file==0:
+        if reverse:
+            task_file_range = range(5)
+        else:
+            task_file_range = range(20)
     else:
-        task_file_range = range(qa_file)
+        task_file_range = [qa_file-1]
         
     files = []
-    for fn in fns:
+    for fn in np.array(fns)[task_file_range]:
         files.append('tasksv11/en/'+fn+'_train.txt')
         files.append('tasksv11/en/'+fn+'_test.txt')
         
     global C
     C = Collection(files, valid_size)
-    #C.printInfo()
+    C.printInfo()
     
     C.translate()
 
