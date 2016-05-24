@@ -118,8 +118,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
     #cost = m.get_cost(y_pred,y,params,lmbd,cf)
     if cf=='ll':
         z = 1/y.shape[0]
-        cost = (1-lmbd)*T.sum(-T.log(T.dot(y_pred.transpose(),y)))/z+ \
-               lmbd*sum([T.square(par).sum() for par in params])/z
+        cost = (1-lmbd)*T.sum(-T.log(T.dot(y_pred.transpose(),y)+0.00000000001))#+lmbd*sum([T.square(par).sum() for par in params])/z
     elif cf=='ce':
         cost = m.get_cost(y_pred,y,params,lmbd,cf)
     
@@ -137,7 +136,8 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
         for x, y in zip(data['train']['input'], data['train']['output']):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
-            #print('cost:\t%.5f'%(cost),end='\r')
+            #print(y_pred,end='\r')
+            print('cost:\t%.5f'%(cost),end='\r')
 
         print(' it: %d\t cost:\t%.5f'%(i+1,cost))
 
