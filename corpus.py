@@ -34,8 +34,8 @@ class Collection(object):
         key = str((reverse,translated,oneHot))
         if key not in self.vectors:
             #print('\nConstructing input and output vectors...'),
-            vecs = {'input':[],'output':[]}
-            vecs = {'train':vecs, 'test':vecs}
+            vecs = {'train':{'input':[],'output':[]}, 
+                     'test':{'input':[],'output':[]}}
             for t in self.tasks:
                 if reverse:
                     tvec = t.getReverseVectors(translated, oneHot)
