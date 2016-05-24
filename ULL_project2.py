@@ -76,8 +76,10 @@ def main():
     global data
     load_data()
 
-    Y = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd,test_set,args.wir)
-    evaluate(Y, test_set)
+    Y_train, Y_test = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd,test_set,args.wir)
+    print('evaluating ...')
+    evaluate(Y_train, 'train')
+    evaluate(Y_test, test_set)
 
 def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
 
@@ -141,34 +143,33 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
 
         print(' it: %d\t cost:\t%.5f'%(i+1,cost))
 
-    Y = []
-
     print('\ntesting ... ')
-    for x, y in zip(data[test_set]['input'], data[test_set]['output']):
+    Y_train = testOutput('train', test)
+    Y_test = testOutput(test_set, test)
+    return Y_train, Y_test
+
+def testOutput(data_set, test):
+    Y = []
+    for x, y in zip(data[data_set]['input'], data[data_set]['output']):
         l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
-        #Y.append([np.argmax(y_pred[i]) for i in range(len(y_pred))])
         pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
         Y.append(C.getVocabulary()[pred_sen])
-
-    
     return Y
 
-
-def evaluate(pred_y, test_set):
-    
-    print('evaluating ...')
+def evaluate(pred_y, data_set):
     original_input = C.getVectors(translated=False, reverse=reverse)
     check = 0
     tot = 0
-    for a, b in zip(original_input[test_set]['output'], pred_y):
+    for a, b in zip(original_input[data_set]['output'], pred_y):
         for wa, wb in zip(a,b):
             tot +=1
             if not np.array_equal(wa,wb):
                 check+=1
     percentage = (tot-check)*100.0/tot
     
-    print('\nprecision: %.2f'%(percentage)+'%')
+    print('\nevaluation of '+data_set+' of size '+str(len(pred_y))+':')
+    print('precision: %.2f'%(percentage)+'%')
     
         
 def load_data():
