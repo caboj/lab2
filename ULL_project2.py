@@ -28,7 +28,7 @@ def main():
                         help='cost funtion to use: \'ll\' - LogLikelihood (default) or \'ce\' - Cross Entropy')
     parser.add_argument('-l', metavar='lambda', dest="lmbd",type=float,
                         help='cost funtion regularization lambda')
-    parser.add_argument('--random_weights', dest="wir", action='store_true',
+    parser.add_argument('--ones_init', dest="wir", action='store_false',
                         help='use this option to use random initialization of weights (default is ones)')
     parser.add_argument('--qa_file', dest="qa_file", type=int,
                         help='for question answer task: specify task file to use (0 is all)')
@@ -42,7 +42,7 @@ def main():
     parser.set_defaults(valid_size=0)
     parser.set_defaults(cf='ll')
     parser.set_defaults(lmbd=0.1)
-    parser.set_defaults(wir=False)
+    parser.set_defaults(wir=True)
     parser.set_defaults(qa_file=0)
     
     args = parser.parse_args()
@@ -115,7 +115,15 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
         
     params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
     
-    cost = m.get_cost(y_pred,y,params,lmbd,cf)
+    #cost = m.get_cost(y_pred,y,params,lmbd,cf)
+    if cf=='ll':
+        z = 1/y.shape[0]
+        cost = (1-lmbd)*T.sum(-T.log(T.dot(y_pred.transpose(),y)))/z+ \
+               lmbd*sum([T.square(par).sum() for par in params])/z
+    elif cf=='ce':
+        cost = m.get_cost(y_pred,y,params,lmbd,cf)
+    
+        
     updates = m.get_sgd_updates(cost, params, lr)
     
     trainF = theano.function(inputs=[x,y,l],outputs=[y_pred,cost],updates=updates)
@@ -129,6 +137,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
         for x, y in zip(data['train']['input'], data['train']['output']):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
+            #print('cost:\t%.5f'%(cost),end='\r')
 
         print(' it: %d\t cost:\t%.5f'%(i+1,cost))
 

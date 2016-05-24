@@ -24,7 +24,7 @@ class Model:
         return np.random.normal(0.0, 1.0, size)
 
     def get_sgd_updates(self,cost, params, lr=0.01):
-        grads = T.grad(cost=cost, wrt=params)
+        grads = T.grad(cost=theano.gradient.grad_clip(cost, -1, 1), wrt=params)
         updates = []
         for p, g in zip(params, grads):
             updates.append([p, p - lr * g])
@@ -61,6 +61,8 @@ class Encoder(Model):
         self.W = theano.shared(m.weights_init((m.nr_hidden,in_size)))
         self.U = theano.shared(m.weights_init((m.nr_hidden,m.nr_hidden)))
         self.V = theano.shared(m.weights_init((m.nr_hidden,m.nr_hidden)))
+        self.bias_EU = theano.shared(np.random.normal(0,1,(m.nr_hidden,)))
+        self.bias_EV = theano.shared(np.random.normal(0,1,(m.nr_hidden,)))
         
     def get_output_expr(self, input_sequence):
         h0 = T.zeros((self.U.shape[0], ))
@@ -69,13 +71,13 @@ class Encoder(Model):
                            sequences=input_sequence,
                            outputs_info=[h0])
 
-        return T.tanh(T.dot(self.V,h[-1]))
+        return T.tanh(T.dot(self.V,h[-1])+self.bias_EV)
 
     def __get_rnn_step_expr(self, x_t, h_tm1):
-        return T.tanh(T.dot( self.U,h_tm1) + T.dot( self.W,x_t))
+        return T.tanh(T.dot( self.U,h_tm1) + T.dot( self.W,x_t)+self.bias_EU)
 
     def get_parameters(self):
-        return [self.W, self.U, self.V]
+        return [self.W, self.U, self.V,self.bias_EU,self.bias_EV]
 
 class GRUEncoder(Model):
     def __init__(self,m):
@@ -91,6 +93,8 @@ class GRUEncoder(Model):
         self.Uz = theano.shared(m.weights_init((m.nr_hidden,m.nr_hidden)))
         self.r = theano.shared(m.gates_init(m.nr_hidden))
         self.z = theano.shared(m.gates_init(m.nr_hidden))
+        self.bias_EU = theano.shared(np.random.normal(0,1,(m.nr_hidden,)))
+        self.bias_EV = theano.shared(np.random.normal(0,1,(m.nr_hidden,)))
 
 
     def get_output_expr(self, input_sequence):
@@ -100,16 +104,16 @@ class GRUEncoder(Model):
                            sequences=input_sequence,
                            outputs_info=[h0])
 
-        return T.tanh(T.dot(self.V,h[-1]))
+        return T.tanh(T.dot(self.V,h[-1])+self.bias_EV)
 
     def __get_rnn_step_expr(self, x_t, h_tm1):
         self.z = T.nnet.sigmoid(T.dot(self.Wz,x_t)+T.dot(self.Uz,h_tm1))
         self.r = T.nnet.sigmoid(T.dot(self.Wr,x_t)+T.dot(self.Ur,h_tm1))
-        hj = T.tanh(T.dot(self.W,x_t)+T.dot(self.U,(self.r*h_tm1)))
+        hj = T.tanh(T.dot(self.W,x_t)+T.dot(self.U,(self.r*h_tm1))+self.bias_EU)
         return self.z*h_tm1+(1-self.z)*hj
 
     def get_parameters(self):
-        return [self.W, self.U,self.Wr, self.Ur,self.Wz, self.Uz]
+        return [self.W, self.U,self.Wr, self.Ur,self.Wz, self.Uz,self.bias_EU,self.bias_EV]
 
 class Decoder(Model):
     def __init__(self,m):
@@ -120,6 +124,8 @@ class Decoder(Model):
         self.U = theano.shared(m.weights_init((m.nr_hidden,m.nr_hidden)))
         self.W = theano.shared(m.weights_init((m.nr_hidden,out_size)))
         self.Oy = theano.shared(m.weights_init((out_size,out_size)))
+        self.bias_DU = theano.shared(np.random.normal(0,1,(m.nr_hidden,)))
+        self.bias_DO = theano.shared(np.random.normal(0,1,(out_size,)))
 
     def get_output_expr(self,c,l):
         h0 = T.tanh(T.dot(self.Ch,c))
@@ -133,13 +139,13 @@ class Decoder(Model):
 
     def oneStep(self, h_tm1, y_tm1, c):
 
-        h_t = T.tanh(theano.dot(self.U,h_tm1)+theano.dot(self.Ch,c) + T.dot(self.W,y_tm1))
-        y_e = theano.dot(self.Oh,h_t)+theano.dot(self.Oy,y_tm1)+theano.dot(self.Co,c)
+        h_t = T.tanh(theano.dot(self.U,h_tm1)+theano.dot(self.Ch,c) + T.dot(self.W,y_tm1)+self.bias_DU)
+        y_e = T.tanh(theano.dot(self.Oh,h_t)+theano.dot(self.Oy,y_tm1)+theano.dot(self.Co,c)+self.bias_DO)
 
         return [h_t, y_e]
 
     def get_parameters(self):
-        return [self.Oh, self.Oy,self.U,self.Co,self.Ch]
+        return [self.Oh, self.Oy,self.U,self.Co,self.Ch,self.bias_DU,self.bias_DO]
 
 
 class GRUDecoder(Model):
@@ -157,6 +163,8 @@ class GRUDecoder(Model):
         self.Oh = theano.shared(m.weights_init((out_size,m.nr_hidden)))
         self.Oy = theano.shared(m.weights_init((out_size,out_size)))
         self.Oc = theano.shared(m.weights_init((out_size,m.nr_hidden)))
+        self.bias_DU = theano.shared(np.random.normal(0,1,(m.nr_hidden,)))
+        self.bias_DO = theano.shared(np.random.normal(0,1,(out_size,)))
 
     def get_output_expr(self,c,l):
         h0 = T.tanh(T.dot(self.C,c))
@@ -173,13 +181,14 @@ class GRUDecoder(Model):
         r = T.nnet.sigmoid( T.dot(self.Wr,y_tm1) + T.dot(self.Ur,h_tm1) + T.dot(self.Cr,c) )
         hj = T.tanh( T.dot(self.W,y_tm1 + T.dot(r, (T.dot(self.U,h_tm1)+T.dot(self.C,c)) ) ))
 
-        h_t = z*h_tm1+(1-z)*hj
-        y_t = theano.dot(self.Oh,h_t)+theano.dot(self.Oy,y_tm1)+theano.dot(self.Oc,c)
+        h_t = z*h_tm1+(1-z)*hj+self.bias_DU
+        y_t = theano.dot(self.Oh,h_t)+theano.dot(self.Oy,y_tm1)+theano.dot(self.Oc,c)+self.bias_DO
 
         return [h_t, y_t]
 
     def get_parameters(self):
-        return [self.W,self.Wr,self.Wz,self.U,self.Ur,self.Uz,self.C,self.Cr,self.Cz,self.Oy,self.Oh,self.Oc]
+        return [self.W,self.Wr,self.Wz,self.U,self.Ur,self.Uz,self.C,self.Cr,self.Cz,self.Oy,self.Oh,\
+                self.Oc,self.bias_DU,self.bias_DO]
 
 class DeEmbed(Model):
     def __init__(self,m,emb_mat):
