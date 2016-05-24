@@ -5,6 +5,7 @@ import theano
 import theano.tensor as T
 from model import *
 from corpus import *
+import os
 
 def main():
     parser = argparse.ArgumentParser(description='invert sentence with RNN encoder decoder')
@@ -75,10 +76,13 @@ def main():
     
     global save_file
     save_file = args.save_file
+    if not os.path.exists('output/'+save_file):
+        os.makedirs('output/'+save_file)
+
 
     info = print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd,test_set,valid_size,args.wir,qa_file)
     if (save_file):
-        with open(save_file, 'w+') as f:
+        with open('output/'+save_file+'/'+save_file+'.txt', 'w+') as f:
             f.write(info)
             f.write('\n')
 
@@ -159,12 +163,12 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
         #print(' it: %d\t cost:\t%.5f'%(i+1,cost))
         #print('testing ... ')
 
-        s1 = evaluate(testOutput('train', test), 'train')
-        s2 = evaluate(testOutput(test_set, test), test_set)
+        s1 = evaluate(testOutput('train', test, i), 'train')
+        s2 = evaluate(testOutput(test_set, test, i), test_set)
         print('%d\t%.5f\t%.5f'%(i+1, s1['total'], s2['total']))
 
         if save_file:
-            with open(save_file, 'a') as f:
+            with open('output/'+save_file+'/'+save_file+'.txt', 'a') as f:
                 f.write(str(i+1)+'\n')
                 f.write(str(s1)+'\n')
                 f.write(str(s2)+'\n')
@@ -176,13 +180,19 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
     return Y_train, Y_test
     '''
 
-def testOutput(data_set, test):
+def testOutput(data_set, test, it):
     Y = []
     for x, y in zip(data[data_set]['input'], data[data_set]['output']):
         l = len(x) if reverse else 1
         y_pred, _ = test(x,y,l)
         pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
         Y.append(C.getVocabulary()[pred_sen])
+    
+    with open('output/'+save_file+'/'+save_file+'_'+data_set+'_output_'+str(it+1)+'.txt', 'w+') as f:
+        for l in Y:
+            f.write(' '.join(l))
+            f.write('\n')
+    
     return Y
 
 def evaluate(pred_y, data_set):
@@ -249,7 +259,7 @@ def load_data():
         files.append('tasksv11/en/'+fn+'_test.txt')
 
     if save_file:
-        with open(save_file, 'a') as f:
+        with open('output/'+save_file+'/'+save_file+'.txt', 'a') as f:
             f.write(str(list(np.array(fns)[task_file_range])))
             f.write('\n\n')
         
@@ -261,6 +271,20 @@ def load_data():
 
     global data
     data = C.getVectors(reverse=reverse, oneHot=True)
+
+    original_input = C.getVectors(translated=False, reverse=reverse)
+    if save_file:
+        writeDataset(original_input, 'train', 'input')
+        if valid_size:
+            writeDataset(original_input, 'valid', 'input')
+        else:
+            writeDataset(original_input, 'test', 'input')
+
+def writeDataset(data, data_set, input_type):
+    with open('output/'+save_file+'/'+save_file+'_'+data_set+'_'+input_type+'.txt', 'w+') as f:
+        for l in data[data_set][input_type]:
+            f.write(' '.join(l))
+            f.write('\n')
 
 def print_info(gru,lr,ha,cf,lmbd,tset,vsize,wir,qa_file):
     cfs ='Cross Entropy' if cf=='ce' else  'Log Likelihod' 
