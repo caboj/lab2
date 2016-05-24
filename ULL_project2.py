@@ -165,7 +165,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
 
         s1 = evaluate(testOutput('train', test, i), 'train')
         s2 = evaluate(testOutput(test_set, test, i), test_set)
-        print('%d\t%.5f\t%.5f'%(i+1, s1['total'], s2['total']))
+        print('%d\t%s\t%s'%(i+1, str(s1['total']), str(s2['total'])))
 
         if save_file:
             with open('output/'+save_file+'/'+save_file+'.txt', 'a') as f:
@@ -188,20 +188,21 @@ def testOutput(data_set, test, it):
         pred_sen = [np.argmax(y_pred[i]) for i in range(len(y_pred))]
         Y.append(C.getVocabulary()[pred_sen])
     
-    with open('output/'+save_file+'/'+save_file+'_'+data_set+'_output_'+str(it+1)+'.txt', 'w+') as f:
-        for l in Y:
-            f.write(' '.join(l))
-            f.write('\n')
+    if save_file:
+        with open('output/'+save_file+'/'+save_file+'_'+data_set+'_output_'+str(it+1)+'.txt', 'w+') as f:
+            for l in Y:
+                f.write(' '.join(l))
+                f.write('\n')
     
     return Y
 
 def evaluate(pred_y, data_set):
     values = {}
-    values['total'] = round(evaluateSet(pred_y,data_set,list(range(len(pred_y)))), 5)
+    values['total'] = evaluateSet(pred_y,data_set,list(range(len(pred_y))))
     lens = np.array([len(y) for y in pred_y])
     for l in np.sort(np.unique(lens)):
         idx = np.where(lens==l)[0]
-        values[l] = round(evaluateSet(pred_y,data_set,idx), 5)
+        values[l] = evaluateSet(pred_y,data_set,idx)
     return values
 
 def evaluateSet(pred_y, data_set, idx):
@@ -215,11 +216,10 @@ def evaluateSet(pred_y, data_set, idx):
             tot +=1
             if not np.array_equal(wa,wb):
                 check+=1
-    percentage = (tot-check)*100.0/tot
-    
+    precision = round((tot-check)*100.0/tot, 5)
     #print('\tevaluation of '+data_set+' of size '+str(len(pred_y))+':')
     #print('\t\tprecision: %.2f'%(percentage)+'%')
-    return percentage
+    return precision
         
 def load_data():
     print('loading data ...')
