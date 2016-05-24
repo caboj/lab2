@@ -36,7 +36,7 @@ def main():
     parser.set_defaults(embedding_size=12)
     parser.set_defaults(learning_rate=0.5)
     parser.set_defaults(iters=20)
-    parser.set_defaults(ha=10)
+    parser.set_defaults(ha=100)
     parser.set_defaults(gru=False)
     parser.set_defaults(task='reverse')
     parser.set_defaults(valid_size=0)
@@ -76,10 +76,14 @@ def main():
     global data
     load_data()
 
+    run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd,test_set,args.wir)
+
+    '''
     Y_train, Y_test = run_model(args.gru, args.learning_rate,args.ha,args.cf,args.lmbd,test_set,args.wir)
     print('evaluating ...')
     evaluate(Y_train, 'train')
     evaluate(Y_test, test_set)
+    '''
 
 def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
 
@@ -133,14 +137,20 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
             #print(y_pred,end='\r')
-            print('cost:\t%.5f'%(cost),end='\r')
+            #print('cost:\t%.5f'%(cost),end='\r')
 
-        print(' it: %d\t cost:\t%.5f'%(i+1,cost))
+        #print(' it: %d\t cost:\t%.5f'%(i+1,cost))
+        print(' it: %d\t'%(i+1))
+        #print('testing ... ')
+        evaluate(testOutput('train', test), 'train')
+        evaluate(testOutput(test_set, test), test_set)
 
+    '''
     print('\ntesting ... ')
     Y_train = testOutput('train', test)
     Y_test = testOutput(test_set, test)
     return Y_train, Y_test
+    '''
 
 def testOutput(data_set, test):
     Y = []
@@ -162,8 +172,8 @@ def evaluate(pred_y, data_set):
                 check+=1
     percentage = (tot-check)*100.0/tot
     
-    print('\nevaluation of '+data_set+' of size '+str(len(pred_y))+':')
-    print('precision: %.2f'%(percentage)+'%')
+    print('\tevaluation of '+data_set+' of size '+str(len(pred_y))+':')
+    print('\t\tprecision: %.2f'%(percentage)+'%')
     
         
 def load_data():
