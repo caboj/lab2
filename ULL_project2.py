@@ -161,7 +161,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
 
         s1 = evaluate(testOutput('train', test), 'train')
         s2 = evaluate(testOutput(test_set, test), test_set)
-        print('%d\t%.2f\t%.2f'%(i+1, s1['total'], s2['total']))
+        print('%d\t%.5f\t%.5f'%(i+1, s1['total'], s2['total']))
 
         if save_file:
             with open(save_file, 'a') as f:
@@ -187,11 +187,11 @@ def testOutput(data_set, test):
 
 def evaluate(pred_y, data_set):
     values = {}
-    values['total'] = round(evaluateSet(pred_y,data_set,list(range(len(pred_y)))), 2)
+    values['total'] = round(evaluateSet(pred_y,data_set,list(range(len(pred_y)))), 5)
     lens = np.array([len(y) for y in pred_y])
     for l in np.sort(np.unique(lens)):
         idx = np.where(lens==l)[0]
-        values[l] = round(evaluateSet(pred_y,data_set,idx), 2)
+        values[l] = round(evaluateSet(pred_y,data_set,idx), 5)
     return values
 
 def evaluateSet(pred_y, data_set, idx):
