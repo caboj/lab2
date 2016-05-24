@@ -110,8 +110,8 @@ class GRUEncoder(Model):
     def __get_rnn_step_expr(self, x_t, h_tm1):
         self.z = T.nnet.sigmoid(T.dot(self.Wz,x_t)+T.dot(self.Uz,h_tm1))
         self.r = T.nnet.sigmoid(T.dot(self.Wr,x_t)+T.dot(self.Ur,h_tm1))
-        hj = T.tanh(T.dot(self.W,x_t)+T.dot(self.U,(self.r*h_tm1))+self.bias_EU)
-        return self.z*h_tm1+(1-self.z)*hj
+        hj = T.tanh(T.dot(self.W,x_t)+T.dot(self.U,(self.r*h_tm1)))
+        return self.z*h_tm1+(1-self.z)*hj+self.bias_EU
 
     def get_parameters(self):
         return [self.W, self.U,self.Wr, self.Ur,self.Wz, self.Uz,self.bias_EU,self.bias_EV]
