@@ -117,13 +117,7 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
         
     params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
     
-    #cost = m.get_cost(y_pred,y,params,lmbd,cf)
-    if cf=='ll':
-        z = 1/y.shape[0]
-        cost = (1-lmbd)*T.sum(-T.log(T.dot(y_pred.transpose(),y)+0.00000000001))#+lmbd*sum([T.square(par).sum() for par in params])/z
-    elif cf=='ce':
-        cost = m.get_cost(y_pred,y,params,lmbd,cf)
-    
+    cost = m.get_cost(y_pred,y,params,lmbd,cf)
         
     updates = m.get_sgd_updates(cost, params, lr)
     

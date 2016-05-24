@@ -35,11 +35,12 @@ class Model:
         if f=='ce':
             cost_function = lambda y_pred_w,y_w : T.nnet.categorical_crossentropy(y_pred_w,y_w)
         else:
-            cost_function = lambda y_pred_w,y_w : -T.log(T.dot(y_pred,y_w))
+            #cost_function = lambda y_pred_w,y_w : T.pow(1-T.dot(y_pred_w,y_w),2)
+            cost_function = lambda y_pred_w,y_w : -T.log(T.dot(y_pred_w,y_w))
         cost_w, _ = theano.scan(fn=cost_function,
                                 sequences=[y_pred,y])
 
-        return (1-lmbd)*T.sum(cost_w)+lmbd*p/y_pred.shape[0]
+        return (1-lmbd)*T.sum(cost_w)+(lmbd/y_pred.shape[0])*p
 
 
 
@@ -129,7 +130,7 @@ class Decoder(Model):
 
     def get_output_expr(self,c,l):
         h0 = T.tanh(T.dot(self.Ch,c))
-        y0 = T.zeros((self.Oy.shape[0],))
+        y0 = T.ones((self.Oy.shape[0],))/100
 
         ([h_vals, y_vals], updates) = theano.scan(fn=self.oneStep,
                                                   outputs_info=[h0, y0],
@@ -168,7 +169,7 @@ class GRUDecoder(Model):
 
     def get_output_expr(self,c,l):
         h0 = T.tanh(T.dot(self.C,c))
-        y0 = T.zeros((self.Oy.shape[0],))
+        y0 = T.ones((self.Oy.shape[0],))/100
 
         ([h_vals, y_vals], updates) = theano.scan(fn=self.oneStep,
                                                   outputs_info=[h0, y0],
