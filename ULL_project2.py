@@ -117,7 +117,14 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
         
     params = embedding.get_parameters() + encoder.get_parameters() + decoder.get_parameters() if embed else encoder.get_parameters() + decoder.get_parameters()
     
-    cost = m.get_cost(y_pred,y,params,lmbd,cf)
+    #cost = m.get_cost(y_pred,y,params,lmbd,cf)
+    #'''
+    if cf=='ll':
+        z = 1/y.shape[0]
+        cost = (1-lmbd)*T.sum(-T.log(T.dot(T.dot(y_pred,y.transpose())),T.eye(z)))+(lmbd/z)*sum([T.square(par).sum() for par in params])
+    elif cf=='ce':
+        cost = m.get_cost(y_pred,y,params,lmbd,cf)
+    #'''
         
     updates = m.get_sgd_updates(cost, params, lr)
     
@@ -129,11 +136,10 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
     
     for i in range(iters):
         lr = lr/2 if i>=ha-1 else lr
+        Y = []
         for x, y in zip(data['train']['input'], data['train']['output']):
             l = len(x) if reverse else 1
             y_pred, cost = trainF(x,y,l)
-            #print(y_pred,end='\r')
-            print('cost:\t%.5f'%(cost),end='\r')
 
         print(' it: %d\t cost:\t%.5f'%(i+1,cost))
 
@@ -163,7 +169,7 @@ def evaluate(pred_y, data_set):
     percentage = (tot-check)*100.0/tot
     
     print('\nevaluation of '+data_set+' of size '+str(len(pred_y))+':')
-    print('precision: %.2f'%(percentage)+'%')
+    
     
         
 def load_data():
