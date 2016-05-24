@@ -32,11 +32,13 @@ def main():
                         help='use this option to use random initialization of weights (default is ones)')
     parser.add_argument('--qa_file', dest="qa_file", type=int,
                         help='for question answer task: specify task file to use (0 is all)')
+    parser.add_argument('--save_file', dest="save_file", type=str,
+                        help='file for saving output')
 
     parser.set_defaults(embedding_size=12)
     parser.set_defaults(learning_rate=0.5)
     parser.set_defaults(iters=20)
-    parser.set_defaults(ha=10)
+    parser.set_defaults(ha=100)
     parser.set_defaults(gru=False)
     parser.set_defaults(task='reverse')
     parser.set_defaults(valid_size=0)
@@ -44,7 +46,8 @@ def main():
     parser.set_defaults(lmbd=0.1)
     parser.set_defaults(wir=True)
     parser.set_defaults(qa_file=0)
-    
+    parser.set_defaults(save_file='')
+
     args = parser.parse_args()
     
     global nr_hidden
@@ -70,7 +73,14 @@ def main():
 
     test_set = 'test' if args.valid_size==0 else 'valid'
     
-    print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd,test_set,valid_size,args.wir,qa_file)
+    global save_file
+    save_file = args.save_file
+
+    info = print_info(args.gru,args.learning_rate,args.ha,args.cf,args.lmbd,test_set,valid_size,args.wir,qa_file)
+    if (save_file):
+        with open(save_file, 'w+') as f:
+            f.write(info)
+            f.write('\n')
 
     global C
     global data
@@ -147,10 +157,17 @@ def run_model(gru,lr,ha,cf,lmbd,test_set,wir):
             #print('cost:\t%.5f'%(cost),end='\r')
 
         #print(' it: %d\t cost:\t%.5f'%(i+1,cost))
-        print(' it: %d\t'%(i+1))
         #print('testing ... ')
-        evaluate(testOutput('train', test), 'train')
-        evaluate(testOutput(test_set, test), test_set)
+
+        s1 = evaluate(testOutput('train', test), 'train')
+        s2 = evaluate(testOutput(test_set, test), test_set)
+        print('%d\t%.2f\t%.2f'%(i+1, s1['total'], s2['total']))
+
+        if save_file:
+            with open(save_file, 'a') as f:
+                f.write(str(i+1)+'\n')
+                f.write(str(s1)+'\n')
+                f.write(str(s2)+'\n')
 
     '''
     print('\ntesting ... ')
@@ -169,19 +186,30 @@ def testOutput(data_set, test):
     return Y
 
 def evaluate(pred_y, data_set):
+    values = {}
+    values['total'] = round(evaluateSet(pred_y,data_set,list(range(len(pred_y)))), 2)
+    lens = np.array([len(y) for y in pred_y])
+    for l in np.sort(np.unique(lens)):
+        idx = np.where(lens==l)[0]
+        values[l] = round(evaluateSet(pred_y,data_set,idx), 2)
+    return values
+
+def evaluateSet(pred_y, data_set, idx):
     original_input = C.getVectors(translated=False, reverse=reverse)
     check = 0
     tot = 0
-    for a, b in zip(original_input[data_set]['output'], pred_y):
+    original = np.array(original_input[data_set]['output'])
+    pred = np.array(pred_y)
+    for a, b in zip(original[idx], pred[idx]):
         for wa, wb in zip(a,b):
             tot +=1
             if not np.array_equal(wa,wb):
                 check+=1
     percentage = (tot-check)*100.0/tot
     
-    print('\tevaluation of '+data_set+' of size '+str(len(pred_y))+':')
-    print('\t\tprecision: %.2f'%(percentage)+'%')
-    
+    #print('\tevaluation of '+data_set+' of size '+str(len(pred_y))+':')
+    #print('\t\tprecision: %.2f'%(percentage)+'%')
+    return percentage
         
 def load_data():
     print('loading data ...')
@@ -219,6 +247,11 @@ def load_data():
     for fn in np.array(fns)[task_file_range]:
         files.append('tasksv11/en/'+fn+'_train.txt')
         files.append('tasksv11/en/'+fn+'_test.txt')
+
+    if save_file:
+        with open(save_file, 'a') as f:
+            f.write(str(list(np.array(fns)[task_file_range])))
+            f.write('\n\n')
         
     global C
     C = Collection(files, valid_size)
@@ -238,7 +271,7 @@ def print_info(gru,lr,ha,cf,lmbd,tset,vsize,wir,qa_file):
 
     wistr = 'random' if wir else 'ones'
     taskstr = 'reverse' if reverse else 'question answering - %d'%qa_file
-    print( 'Network params on task %s:\n'\
+    info= ('Network params on task %s:\n'\
            ' nr of iters:\t\t%d\n'\
            ' hidden nodes:\t\t%d\n'\
            ' embedding layer size:\t%d\n'\
@@ -250,7 +283,8 @@ def print_info(gru,lr,ha,cf,lmbd,tset,vsize,wir,qa_file):
            ' regularization lambda:\t%f\n'\
            ' results on %s\n'
           %(taskstr,iters,nr_hidden,embedding_size,gru,wistr,lr,ha,cfs,lmbd,testsets))
-    
+    print(info)
+    return info
           
 if __name__ == "__main__":
     main()
